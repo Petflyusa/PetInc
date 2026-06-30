@@ -1,0 +1,23 @@
+{
+  "name": "petinc",
+  "version": "1.0.0",
+  "description": "PetFly USA - Unified landing page + CRM",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1",
+    "ejs": "^3.1.9",
+    "bcryptjs": "^2.4.3",
+    "uuid": "^9.0.0",
+    "nodemailer": "^6.9.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

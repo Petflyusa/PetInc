@@ -1,0 +1,175 @@
+<%- include('partials/header', { currentPage: 'quote' }) %>
+
+<script>
+function submitQuoteForm(event) {
+    event.preventDefault();
+    var form = document.getElementById('quoteForm');
+    var btn = form.querySelector('button[type="submit"]');
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    btn.disabled = true;
+
+    var fd = new FormData(form);
+    fetch('/api/quote', {method: 'POST', body: fd})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            document.getElementById('formContent').innerHTML = '<div class="success-message"><i class="fas fa-check"></i><h2>Request Received</h2><p>We\'ll be in touch within 24 hours.</p></div>';
+        } else {
+            alert('Error: ' + (d.message || 'Submission failed'));
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        }
+    })
+    .catch(function() {
+        alert('An error occurred. Please try again.');
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    });
+}
+</script>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header" style="color: var(--cream);">
+    <img class="page-header-video" src="https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=1600&q=80" alt="Pet Travel Background" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; z-index: 0;">
+    <div class="page-header-overlay"></div>
+    <div class="container">
+      <span class="section-label">Transport Quote</span>
+      <h1 style="color: var(--cream);">Request your<br>personalised quote.</h1>
+      <p style="color: rgba(247, 245, 240, 0.75);">Fill in the details below and we'll respond within 24 hours with a tailored plan for your pet's journey.</p>
+    </div>
+  </section>
+
+  <!-- QUOTE FORM -->
+  <section class="section">
+    <div class="container">
+      <div class="quote-layout">
+
+        <!-- Aside: context -->
+        <div class="quote-aside">
+          <span class="section-label">What to expect</span>
+          <h2>A quote as unique as your companion.</h2>
+          <p>Every transport is different. The quote you receive will be based on your pet's breed, size, destination, and preferred level of service.</p>
+          <ul class="feature-list" style="margin-top: var(--space-md);">
+            <li>Personalised route planning</li>
+            <li>Transparent pricing — no hidden fees</li>
+            <li>Timeline estimates for your specific journey</li>
+            <li>Container recommendations</li>
+          </ul>
+
+          <div style="margin-top: var(--space-lg); padding: var(--space-md); background: var(--cream); border-left: 2px solid var(--accent);">
+            <p style="font-size: 0.9375rem; color: var(--text-muted); line-height: 1.7;">
+              Need urgent assistance? Our emergency line is available 24/7 for existing shipments.
+              <br><br>
+              <a href="tel:+162****5666" style="font-family: var(--font-serif); font-size: 1.125rem; color: var(--charcoal); border-bottom: 1px solid var(--warm-gray-300);">
+                +1 (626) 656-5666
+              </a>
+            </p>
+          </div>
+        </div>
+
+        <!-- Form -->
+        <div class="form-container" id="formContent">
+          <form id="quoteForm" onsubmit="submitQuoteForm(event)">
+
+            <div style="margin-bottom: var(--space-lg);">
+              <span class="section-label" style="margin-bottom: 1.5rem; display:block;">Pet Information</span>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Pet Type *</label>
+                  <select class="form-control" name="pet_type" required>
+                    <option value="">Select</option>
+                    <option value="Dog">Dog</option>
+                    <option value="Cat">Cat</option>
+                    <option value="Bird">Bird</option>
+                    <option value="Rabbit">Rabbit</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Pet Name</label>
+                  <input type="text" class="form-control" name="pet_name" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                  <label>Breed</label>
+                  <input type="text" class="form-control" name="breed" placeholder="e.g., Golden Retriever">
+                </div>
+                <div class="form-group">
+                  <label>Travel Date</label>
+                  <input type="date" class="form-control" name="travel_date">
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom: var(--space-lg);">
+              <span class="section-label" style="margin-bottom: 1.5rem; display:block;">Route</span>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Origin Country *</label>
+                  <input type="text" class="form-control" name="origin_country" placeholder="e.g., United States" required>
+                </div>
+                <div class="form-group">
+                  <label>Origin City *</label>
+                  <input type="text" class="form-control" name="origin_city" placeholder="e.g., Los Angeles" required>
+                </div>
+                <div class="form-group">
+                  <label>Destination Country *</label>
+                  <input type="text" class="form-control" name="dest_country" placeholder="e.g., China" required>
+                </div>
+                <div class="form-group">
+                  <label>Destination City *</label>
+                  <input type="text" class="form-control" name="dest_city" placeholder="e.g., Shanghai" required>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-bottom: var(--space-lg);">
+              <span class="section-label" style="margin-bottom: 1.5rem; display:block;">Your Details</span>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Your Name *</label>
+                  <input type="text" class="form-control" name="contact_name" placeholder="Full name" required>
+                </div>
+                <div class="form-group">
+                  <label>Email *</label>
+                  <input type="email" class="form-control" name="email" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <input type="tel" class="form-control" name="phone" placeholder="+1 (555) 000-0000">
+                </div>
+                <div class="form-group">
+                  <label>Transport Type</label>
+                  <select class="form-control" name="transport_type">
+                    <option value="">Select preference</option>
+                    <option value="Cabin">Cabin (in aircraft cabin)</option>
+                    <option value="Cargo">Cargo (hold)</option>
+                    <option value="Private">Private charter</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group full">
+              <label>Additional Notes</label>
+              <textarea class="form-control" name="notes" placeholder="Tell us more about your pet, special requirements, or questions..."></textarea>
+            </div>
+
+            <!-- Honeypot fields -->
+            <div style="position:absolute;left:-9999px;" aria-hidden="true">
+              <input type="text" name="fax_only" tabindex="-1" autocomplete="no">
+              <input type="text" name="email_addr" tabindex="-1" autocomplete="no">
+            </div>
+
+            <button type="submit" class="btn-primary">
+              Send Request <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+            </button>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+<%- include('partials/footer') %>

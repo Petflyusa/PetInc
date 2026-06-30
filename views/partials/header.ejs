@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PetFly USA - Your trusted partner for international pet transportation. IATA & USDA certified, 8+ years experience, serving 15+ countries.">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'PetFly USA' %></title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="siteHeader">
+    <div class="container">
+      <a href="/" class="logo">
+        <div class="logo-icon"><i class="fas fa-plane"></i></div>
+        PetFly USA
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/" <%= currentPage === 'index' ? 'class="active"' : '' %>>Home</a></li>
+          <li><a href="/service" <%= currentPage === 'service' ? 'class="active"' : '' %>>Services</a></li>
+          <li><a href="/quote" <%= currentPage === 'quote' ? 'class="active"' : '' %>>Quote</a></li>
+          <li><a href="/regulations" <%= currentPage === 'regulations' ? 'class="active"' : '' %>>Regulations</a></li>
+          <li><a href="/contact" <%= currentPage === 'contact' ? 'class="active"' : '' %>>Contact</a></li>
+        </ul>
+      </nav>
+      <div class="menu-toggle" onclick="document.querySelector('.mobile-nav').classList.toggle('active'); this.classList.toggle('active');">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Nav -->
+  <div class="mobile-nav">
+    <a href="/">Home</a>
+    <a href="/service">Services</a>
+    <a href="/quote">Quote</a>
+    <a href="/regulations">Regulations</a>
+    <a href="/contact">Contact</a>
+  </div>
+
+<script>
+  window.addEventListener('scroll', function() {
+    var h = document.getElementById('siteHeader');
+    if (window.scrollY > 60) {
+      h.classList.add('scrolled');
+    } else {
+      h.classList.remove('scrolled');
+    }
+  });
+</script>

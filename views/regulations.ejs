@@ -1,0 +1,300 @@
+<%- include('partials/header', { currentPage: 'regulations' }) %>
+
+<script>
+// Country search
+function searchCountry() {
+    var input = document.getElementById('countrySearch');
+    var filter = input.value.toUpperCase().trim();
+    var select = document.getElementById('countrySelect');
+    for (var i = 0; i < select.options.length; i++) {
+        var option = select.options[i];
+        option.style.display = (i === 0) ? (filter === '' ? '' : 'none') :
+            (filter === '' || option.text.toUpperCase().indexOf(filter) > -1) ? '' : 'none';
+    }
+}
+
+// Airline search
+function searchAirline() {
+    var input = document.getElementById('airlineSearch');
+    var filter = input.value.toUpperCase().trim();
+    var select = document.getElementById('airlineSelect');
+    for (var i = 0; i < select.options.length; i++) {
+        var option = select.options[i];
+        option.style.display = (i === 0) ? (filter === '' ? '' : 'none') :
+            (filter === '' || option.text.toUpperCase().indexOf(filter) > -1) ? '' : 'none';
+    }
+}
+
+// Load country regulations
+function showCountryTab(countryId) {
+    var container = document.getElementById('countryInfo');
+    if (!countryId) {
+        container.innerHTML = '<div class="select-prompt"><i class="fas fa-globe"></i><p>Select a country above to view its import regulations</p></div>';
+        return;
+    }
+    document.getElementById('countrySearch').value = '';
+    var select = document.getElementById('countrySelect');
+    for (var i = 0; i < select.options.length; i++) select.options[i].style.display = '';
+    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    fetch('/api/regulations/country/' + countryId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var html = '';
+        html += '<div class="reg-tabs">';
+        html += '<button type="button" class="reg-tab active" data-tab="overview">Overview</button>';
+        html += '<button type="button" class="reg-tab" data-tab="requirements">Requirements</button>';
+        html += '<button type="button" class="reg-tab" data-tab="documents">Documents</button>';
+        if (data.restricted_breeds) html += '<button type="button" class="reg-tab" data-tab="breeds">Breeds</button>';
+        html += '</div>';
+
+        html += '<div id="tab-overview" class="tab-content active">';
+        html += '<div class="reg-header"><span class="reg-flag">&#127757;</span><h2>' + data.country_name + ' Import Regulations</h2></div>';
+        html += '<div class="reg-grid">';
+        html += '<div class="reg-item"><label>Accepted Pets</label><span>' + (data.pet_types || 'Dogs, Cats') + '</span></div>';
+        html += '<div class="reg-item"><label>Microchip</label><span class="' + (data.microchip === 'Required' ? 'yes' : 'no') + '">' + (data.microchip || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Rabies</label><span class="' + (data.rabies_vaccination === 'Required' ? 'yes' : 'no') + '">' + (data.rabies_vaccination || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Health Certificate</label><span class="' + (data.health_certificate === 'Required' ? 'yes' : 'no') + '">' + (data.health_certificate || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Import Permit</label><span class="' + (data.import_permit === 'Required' ? 'maybe' : 'no') + '">' + (data.import_permit || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Quarantine</label><span class="' + (data.quarantine_days > 0 ? 'quarantine' : 'no') + '">' + (data.quarantine_days > 0 ? data.quarantine_days + ' days' : 'Not required') + '</span></div>';
+        html += '<div class="reg-item"><label>Prep Time</label><span>' + (data.preparation_time || 'Varies') + '</span></div>';
+        html += '</div>';
+        if (data.additional_requirements) {
+            html += '<div class="reg-section"><h3><i class="fas fa-info-circle"></i> Additional Requirements</h3><p>' + data.additional_requirements + '</p></div>';
+        }
+        html += '</div>';
+
+        html += '<div id="tab-requirements" class="tab-content">';
+        html += '<h3>Step-by-Step Requirements</h3>';
+        html += '<ol class="req-list">';
+        html += '<li><strong>Microchip</strong> — ' + (data.microchip === 'Required' ? 'ISO 11784/11785 standard required' : 'Not required but recommended') + '</li>';
+        html += '<li><strong>Rabies Vaccination</strong> — ' + (data.rabies_vaccination || 'Check with destination authorities') + '</li>';
+        html += '<li><strong>Health Certificate</strong> — ' + (data.health_certificate || 'Required from licensed veterinarian') + '</li>';
+        if (data.import_permit === 'Required') {
+            html += '<li><strong>Import Permit</strong> — Must obtain official permit before travel</li>';
+        }
+        html += '<li><strong>Book Transport</strong> — Contact PetFly USA to arrange shipment</li>';
+        html += '<li><strong>Arrival</strong> — ' + (data.quarantine_days > 0 ? 'Quarantine required for ' + data.quarantine_days + ' days' : 'No quarantine required') + '</li>';
+        html += '</ol>';
+        html += '<p class="prep-note"><i class="fas fa-clock"></i> Recommended preparation: ' + (data.preparation_time || 'Contact us for timeline') + '</p>';
+        html += '</div>';
+
+        html += '<div id="tab-documents" class="tab-content">';
+        html += '<h3>Required Documents</h3>';
+        html += '<ul class="doc-list">';
+        if (data.microchip) html += '<li><i class="fas fa-microchip"></i> Microchip Certificate</li>';
+        if (data.rabies_vaccination) html += '<li><i class="fas fa-syringe"></i> Rabies Vaccination Certificate</li>';
+        if (data.health_certificate) html += '<li><i class="fas fa-file-medical"></i> Veterinary Health Certificate</li>';
+        if (data.import_permit === 'Required') html += '<li><i class="fas fa-passport"></i> Import Permit</li>';
+        html += '<li><i class="fas fa-plane"></i> Airline Booking Confirmation</li>';
+        html += '<li><i class="fas fa-box"></i> IATA-Approved Crate</li>';
+        html += '</ul></div>';
+
+        if (data.restricted_breeds) {
+            html += '<div id="tab-breeds" class="tab-content">';
+            html += '<h3>Breed Restrictions</h3>';
+            html += '<p>Some breeds may be restricted in ' + data.country_name + ':</p>';
+            var breeds = data.restricted_breeds.split(', ');
+            html += '<ul class="breed-list">';
+            breeds.forEach(function(breed) { html += '<li>' + breed.trim() + '</li>'; });
+            html += '</ul>';
+            html += '<p class="note">Note: Restrictions may vary. Contact us for specific breed inquiries.</p>';
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+        container.querySelectorAll('.reg-tab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tab = this.getAttribute('data-tab');
+                this.parentElement.querySelectorAll('.reg-tab').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                container.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                document.getElementById('tab-' + tab).classList.add('active');
+            });
+        });
+    });
+}
+
+// Load airline regulations
+function showAirlineTab(airlineId) {
+    var container = document.getElementById('airlineInfo');
+    if (!airlineId) {
+        container.innerHTML = '<div class="select-prompt"><i class="fas fa-plane"></i><p>Select an airline above to view its pet transport policy</p></div>';
+        return;
+    }
+    document.getElementById('airlineSearch').value = '';
+    var select = document.getElementById('airlineSelect');
+    for (var i = 0; i < select.options.length; i++) select.options[i].style.display = '';
+    container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    fetch('/api/regulations/airline/' + airlineId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var html = '';
+        html += '<div class="reg-tabs">';
+        html += '<button type="button" class="reg-tab active" data-tab="overview">Overview</button>';
+        html += '<button type="button" class="reg-tab" data-tab="fees">Fees</button>';
+        html += '<button type="button" class="reg-tab" data-tab="crates">Crate</button>';
+        html += '</div>';
+
+        html += '<div id="airline-overview" class="tab-content active">';
+        html += '<div class="reg-header"><h2>' + data.airline_name + ' Pet Policy</h2></div>';
+        html += '<div class="reg-grid">';
+        html += '<div class="reg-item"><label>Cabin</label><span class="' + (data.carry_on === 'Yes' ? 'yes' : 'no') + '">' + (data.carry_on || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Checked Bag</label><span class="' + (data.checked_bag === 'Yes' ? 'yes' : 'no') + '">' + (data.checked_bag || 'N/A') + '</span></div>';
+        html += '<div class="reg-item"><label>Cargo</label><span class="' + (data.cargo === 'Yes' ? 'yes' : 'maybe') + '">' + (data.cargo || 'N/A') + '</span></div>';
+        html += '</div>';
+        if (data.size_limits) html += '<div class="reg-section"><h3>Size Limits</h3><p>' + data.size_limits + '</p></div>';
+        if (data.breed_restrictions) html += '<div class="reg-section"><h3>Breed Restrictions</h3><p>' + data.breed_restrictions + '</p></div>';
+        html += '</div>';
+
+        html += '<div id="airline-fees" class="tab-content">';
+        html += '<h3>Pet Fees</h3>';
+        html += '<div class="fee-card"><span class="fee-label">Pet Fee</span><span class="fee-amount">' + (data.pet_fee || 'Contact airline') + '</span></div>';
+        if (data.booking_info) html += '<p class="booking-info"><i class="fas fa-info-circle"></i> ' + data.booking_info + '</p>';
+        html += '</div>';
+
+        html += '<div id="airline-crates" class="tab-content">';
+        html += '<h3>Crate Requirements</h3>';
+        html += '<p>' + (data.crate_requirements || 'IATA-approved crate required. Contact airline for specifics.') + '</p>';
+        html += '<ul class="crate-list">';
+        html += '<li><i class="fas fa-check"></i> IATA-compliant transport crate</li>';
+        html += '<li><i class="fas fa-check"></i> Proper ventilation</li>';
+        html += '<li><i class="fas fa-check"></i> Water and food dishes attached</li>';
+        html += '<li><i class="fas fa-check"></i> Absorbent bedding</li>';
+        html += '<li><i class="fas fa-check"></i> Live Animal labels</li>';
+        html += '</ul></div>';
+
+        container.innerHTML = html;
+        container.querySelectorAll('.reg-tab').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tab = this.getAttribute('data-tab');
+                this.parentElement.querySelectorAll('.reg-tab').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                container.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                document.getElementById('airline-' + tab).classList.add('active');
+            });
+        });
+    });
+}
+
+// Initialize countries and airlines on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Load countries
+    fetch('/api/countries')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var select = document.getElementById('countrySelect');
+        if (data.countries) {
+            data.countries.forEach(function(c) {
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.country_name;
+                select.appendChild(opt);
+            });
+        }
+    });
+
+    // Load airlines
+    fetch('/api/airlines')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var select = document.getElementById('airlineSelect');
+        if (data.airlines) {
+            data.airlines.forEach(function(a) {
+                var opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = a.airline_name;
+                select.appendChild(opt);
+            });
+        }
+    });
+});
+</script>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header">
+    <div class="container">
+      <span class="section-label">Reference</span>
+      <h1>Country & Airline<br>Regulations.</h1>
+      <p>Browse import requirements by country and airline pet transport policies to plan your pet's journey with precision.</p>
+    </div>
+  </section>
+
+  <!-- REGULATIONS CONTENT -->
+  <section class="section">
+    <div class="container">
+
+      <!-- Country Regulations -->
+      <div style="margin-bottom: var(--space-2xl);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+          <div>
+            <span class="section-label">Import Requirements</span>
+            <h2 class="section-title">Country Regulations</h2>
+            <p style="color: var(--text-muted); margin-top: var(--space-sm); font-size: 1rem; max-width: 44ch;">Select a destination country to view specific import requirements, documentation, and quarantine rules.</p>
+          </div>
+          <div>
+            <div class="search-box" style="background: var(--cream);">
+              <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="countrySearch" class="search-input" placeholder="Search countries..." onkeyup="searchCountry()">
+              </div>
+              <select id="countrySelect" class="reg-select" onchange="showCountryTab(this.value)" style="min-width: 260px;">
+                <option value="">Select a Country</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="countryInfo" class="reg-info">
+          <div class="select-prompt">
+            <i class="fas fa-globe"></i>
+            <p>Select a country above to view its import regulations</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div style="border-top: 1px solid var(--warm-gray-100); margin: var(--space-xl) 0;"></div>
+
+      <!-- Airline Regulations -->
+      <div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); align-items: start; margin-bottom: var(--space-xl);">
+          <div>
+            <span class="section-label">Pet Policy</span>
+            <h2 class="section-title">Airline Regulations</h2>
+            <p style="color: var(--text-muted); margin-top: var(--space-sm); font-size: 1rem; max-width: 44ch;">Review pet transport policies, fees, and crate requirements for major airlines serving international routes.</p>
+          </div>
+          <div>
+            <div class="search-box" style="background: var(--cream);">
+              <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="airlineSearch" class="search-input" placeholder="Search airlines..." onkeyup="searchAirline()">
+              </div>
+              <select id="airlineSelect" class="reg-select" onchange="showAirlineTab(this.value)" style="min-width: 260px;">
+                <option value="">Select an Airline</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="airlineInfo" class="reg-info">
+          <div class="select-prompt">
+            <i class="fas fa-plane"></i>
+            <p>Select an airline above to view its pet transport policy</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <span class="section-label">Need Help?</span>
+      <h2>Regulations can be complex.<br>Let us guide you.</h2>
+      <p>Our team knows the requirements for every destination we serve.</p>
+      <a href="/contact" class="btn-primary" style="display: inline-flex; width: auto; text-decoration: none;">
+        Contact Us <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+      </a>
+    </div>
+  </section>
+
+<%- include('partials/footer') %>

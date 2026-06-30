@@ -1,0 +1,166 @@
+<%- include('partials/header', { currentPage: 'index' }) %>
+
+  <!-- HERO: Full screen, video/photo background, oversized serif headline -->
+  <section class="hero">
+    <!-- Video background or fallback image -->
+    <div class="hero-fallback"></div>
+    <div class="hero-overlay"></div>
+
+    <!-- Optional: Add <video class="hero-video" autoplay muted loop playsinline> for real video -->
+
+    <div class="hero-content">
+      <div class="container">
+        <span class="hero-eyebrow">International Pet Transport</span>
+        <h1>Where Every<br>Journey<br>Counts.</h1>
+        <p class="hero-sub">Safe passage for your most precious companions — to 15+ countries, with IATA & USDA certified care at every mile.</p>
+        <a href="/quote" class="hero-cta">
+          Request a Quote <i class="fas fa-arrow-right" style="font-size:0.7rem;"></i>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-scroll">Scroll</div>
+  </section>
+
+  <!-- INTRO STATEMENT: Minimal, asymmetric -->
+  <section class="section" style="padding-top: var(--space-xl); padding-bottom: var(--space-xl);">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: var(--space-lg); align-items: start;">
+        <div>
+          <span class="section-label">About</span>
+        </div>
+        <div>
+          <p style="font-family: var(--font-serif); font-size: clamp(1.5rem, 2.5vw, 2.25rem); line-height: 1.4; color: var(--charcoal); max-width: 28ch; letter-spacing: -0.01em;">
+            We don't just transport pets.<br>
+            We shepherd them safely across oceans and continents — with precision, care, and unwavering attention.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BAR: 4 columns, minimal -->
+  <div class="stats-bar">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number">8+</div>
+          <div class="stat-label">Years Experience</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">15+</div>
+          <div class="stat-label">Countries Served</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">3</div>
+          <div class="stat-label">Global Offices</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">IATA</div>
+          <div class="stat-label">Certified</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SERVICES: 2x2 grid, editorial card style -->
+  <section class="section" style="padding-top: var(--space-xl);">
+    <div class="container">
+      <div class="section-header-left">
+        <span class="section-label">What We Do</span>
+        <h2 class="section-title">Our Services</h2>
+      </div>
+
+      <div class="services-grid">
+        <div class="service-item">
+          <div class="service-icon"><i class="fas fa-plane-departure"></i></div>
+          <h3>International Transport</h3>
+          <p>Door-to-door pet relocation across 15+ countries. Complete documentation, customs clearance, and IATA-compliant containers handled for you.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i class="fas fa-file-contract"></i></div>
+          <h3>Documentation</h3>
+          <p>Health certificates, import permits, microchipping records — every piece of paperwork reviewed and processed by our expert team.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i class="fas fa-shield-alt"></i></div>
+          <h3>USDA & IATA Compliance</h3>
+          <p>Fully compliant with international airline regulations. Your pet travels in approved containers with full regulatory approval at every checkpoint.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i class="fas fa-headset"></i></div>
+          <h3>Dedicated Support</h3>
+          <p>A single point of contact throughout the entire journey. Real-time updates, veterinary guidance, and 24/7 emergency availability.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EDITORIAL CONTENT BLOCK -->
+  <section class="section section-lg" style="padding-top: var(--space-2xl);">
+    <div class="container">
+      <div class="content-block">
+        <div class="content-block__text">
+          <span class="section-label">The Process</span>
+          <h2>Simple steps to global peace of mind</h2>
+          <p>We strip away the complexity of international pet transport. From initial consultation to final delivery, every step is planned with precision and executed with care.</p>
+          <ul class="feature-list">
+            <li>Initial assessment & route planning</li>
+            <li>Documentation preparation & review</li>
+            <li>Container consultation & delivery</li>
+            <li>Airport handling & customs clearance</li>
+            <li>Door-to-door delivery at destination</li>
+          </ul>
+          <a href="/service" style="display: inline-flex; align-items: center; gap: 0.5rem; margin-top: var(--space-md); font-size: 0.8125rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--charcoal); padding-bottom: 2px; transition: opacity 0.2s;">
+            Learn More <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+          </a>
+        </div>
+        <div class="content-block__media">
+          <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=900&q=80" alt="Pet transport" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OFFICES SECTION -->
+  <section class="section" style="background: var(--cream); padding: var(--space-2xl) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-xl);">
+        <div>
+          <span class="section-label">Global Presence</span>
+          <h2 class="section-title" style="max-width: 16ch;">Our offices around the world</h2>
+        </div>
+        <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md);">
+            <div class="contact-office" style="border: none; padding: 0;">
+              <h3 style="font-size: 0.9375rem; color: var(--charcoal);">Los Angeles</h3>
+              <address style="font-size: 0.875rem; color: var(--text-muted);">California, USA</address>
+              <p style="font-size: 0.8125rem; color: var(--accent); margin-top: 0.25rem;">Headquarters</p>
+            </div>
+            <div class="contact-office" style="border: none; padding: 0;">
+              <h3 style="font-size: 0.9375rem; color: var(--charcoal);">Shanghai</h3>
+              <address style="font-size: 0.875rem; color: var(--text-muted);">China</address>
+            </div>
+            <div class="contact-office" style="border: none; padding: 0;">
+              <h3 style="font-size: 0.9375rem; color: var(--charcoal);">Beijing</h3>
+              <address style="font-size: 0.875rem; color: var(--text-muted);">China</address>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA SECTION -->
+  <section class="cta-section">
+    <div class="container">
+      <span class="section-label">Get Started</span>
+      <h2>Ready to begin your pet's journey?</h2>
+      <p>Request a quote and we'll respond within 24 hours.</p>
+      <a href="/quote" class="btn-primary" style="display: inline-flex; width: auto; text-decoration: none;">
+        Request a Quote <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+      </a>
+    </div>
+  </section>
+
+<%- include('partials/footer') %>

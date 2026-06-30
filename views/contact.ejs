@@ -1,0 +1,154 @@
+<%- include('partials/header', { currentPage: 'contact' }) %>
+
+<script>
+function submitContactForm(event) {
+    event.preventDefault();
+    var form = document.getElementById('contactForm');
+    var btn = form.querySelector('button[type="submit"]');
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    btn.disabled = true;
+
+    var fd = new FormData(form);
+    fetch('/api/contact', {method: 'POST', body: fd})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            document.getElementById('formContent').innerHTML = '<div class="success-message"><i class="fas fa-check"></i><h2>Message Sent</h2><p>We\'ll be in touch within 24 hours.</p></div>';
+        } else {
+            alert('Error: ' + (d.message || 'Submission failed'));
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        }
+    })
+    .catch(function() {
+        alert('An error occurred. Please try again.');
+        btn.innerHTML = orig;
+        btn.disabled = false;
+    });
+}
+</script>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header">
+    <div class="container">
+      <span class="section-label">Get in Touch</span>
+      <h1>Let's talk<br>about your journey.</h1>
+      <p>Whether you have a question, need a quote, or want to discuss your pet's specific requirements — our team is here to help.</p>
+    </div>
+  </section>
+
+  <!-- CONTACT CONTENT -->
+  <section class="section">
+    <div class="container">
+
+      <div class="contact-grid">
+
+        <!-- Left: office list -->
+        <div>
+          <span class="section-label">Our Offices</span>
+
+          <div class="contact-office">
+            <h3>Los Angeles — Headquarters</h3>
+            <address>
+              California, USA<br>
+              <a href="tel:+155****4567">+1 (555) 123-4567</a><br>
+              <a href="mailto:info@petflyusa.com">info@petflyusa.com</a>
+            </address>
+            <p style="margin-top: 0.5rem; font-size: 0.8125rem; color: var(--text-muted);">Mon—Fri: 9AM — 6PM PST</p>
+          </div>
+
+          <div class="contact-office">
+            <h3>Shanghai</h3>
+            <address>
+              China<br>
+              <a href="tel:+862****5678">+86 21 1234 5678</a><br>
+              <a href="mailto:shanghai@petflyusa.com">shanghai@petflyusa.com</a>
+            </address>
+            <p style="margin-top: 0.5rem; font-size: 0.8125rem; color: var(--text-muted);">Mon—Fri: 9AM — 6PM CST</p>
+          </div>
+
+          <div class="contact-office">
+            <h3>Beijing</h3>
+            <address>
+              China<br>
+              <a href="tel:+861****5678">+86 10 1234 5678</a><br>
+              <a href="mailto:beijing@petflyusa.com">beijing@petflyusa.com</a>
+            </address>
+            <p style="margin-top: 0.5rem; font-size: 0.8125rem; color: var(--text-muted);">Mon—Fri: 9AM — 6PM CST</p>
+          </div>
+
+          <div class="contact-office">
+            <h3>Chengdu</h3>
+            <address>
+              China<br>
+              <a href="tel:+862****5678">+86 28 1234 5678</a><br>
+              <a href="mailto:chengdu@petflyusa.com">chengdu@petflyusa.com</a>
+            </address>
+            <p style="margin-top: 0.5rem; font-size: 0.8125rem; color: var(--text-muted);">Mon—Fri: 9AM — 6PM CST</p>
+          </div>
+        </div>
+
+        <!-- Right: contact form -->
+        <div>
+          <span class="section-label">Send a Message</span>
+          <div class="form-container" id="formContent" style="margin-top: 1.5rem;">
+            <form id="contactForm" onsubmit="submitContactForm(event)">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Your Name *</label>
+                  <input type="text" class="form-control" name="name" placeholder="Full name" required>
+                </div>
+                <div class="form-group">
+                  <label>Email *</label>
+                  <input type="email" class="form-control" name="email" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                  <label>Phone</label>
+                  <input type="tel" class="form-control" name="phone" placeholder="+1 (555) 000-0000">
+                </div>
+                <div class="form-group">
+                  <label>Subject *</label>
+                  <select class="form-control" name="subject" required>
+                    <option value="">Select</option>
+                    <option value="quote">Request a Quote</option>
+                    <option value="general">General Inquiry</option>
+                    <option value="tracking">Shipment Tracking</option>
+                    <option value="documentation">Documentation Help</option>
+                    <option value="complaint">Complaint</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group full">
+                <label>Message *</label>
+                <textarea class="form-control" name="message" placeholder="Tell us how we can help..." required></textarea>
+              </div>
+
+              <!-- Honeypot fields -->
+              <div style="position:absolute;left:-9999px;" aria-hidden="true">
+                <input type="text" name="fax_only" tabindex="-1" autocomplete="no">
+                <input type="text" name="email_addr" tabindex="-1" autocomplete="no">
+              </div>
+
+              <button type="submit" class="btn-primary">
+                Send Message <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- EMERGENCY HOTLINE -->
+  <div class="container" style="margin-bottom: var(--space-xl);">
+    <div class="contact-emergency">
+      <h3>24/7 Emergency Line</h3>
+      <p>For existing shipments requiring urgent assistance outside business hours</p>
+      <p class="emergency-number">+1 (626) 656-5666</p>
+    </div>
+  </div>
+
+<%- include('partials/footer') %>

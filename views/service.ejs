@@ -1,0 +1,111 @@
+<%- include('partials/header', { currentPage: 'service' }) %>
+
+  <!-- PAGE HEADER -->
+  <section class="page-header">
+    <div class="container">
+      <span class="section-label">What We Offer</span>
+      <h1>Services crafted<br>for every journey.</h1>
+      <p>From solo travelers to entire families of animals — we handle international pet transport with precision and genuine care.</p>
+    </div>
+  </section>
+
+  <!-- SERVICES: Editorial layout with alternating text/image blocks -->
+  <section class="section">
+    <div class="container">
+
+      <!-- Service 1: International Transport -->
+      <div class="content-block" style="margin-bottom: var(--space-2xl);">
+        <div class="content-block__text">
+          <span class="section-label">Core Service</span>
+          <h2>International Pet Transportation</h2>
+          <p>Complete door-to-door relocation service covering 15+ countries. We manage the entire process — from pickup at your door to final delivery at the destination.</p>
+          <ul class="feature-list">
+            <li>Door-to-door service from origin to destination</li>
+            <li>IATA-compliant transport containers provided</li>
+            <li>Live animal handling by certified professionals</li>
+            <li>Real-time tracking and status updates</li>
+            <li>Temperature-controlled transport options</li>
+          </ul>
+        </div>
+        <div class="content-block__media">
+          <img src="https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=900&q=80" alt="Pet travel" loading="lazy">
+        </div>
+      </div>
+
+      <!-- Service 2: Documentation -->
+      <div class="content-block reverse" style="margin-bottom: var(--space-2xl);">
+        <div class="content-block__text">
+          <span class="section-label">Essentials</span>
+          <h2>Documentation & Compliance</h2>
+          <p>International travel requires meticulous paperwork. Our team handles every document — health certificates, import permits, vaccination records — ensuring full compliance with destination country regulations.</p>
+          <ul class="feature-list">
+            <li>Health certificate preparation & vet coordination</li>
+            <li>Import permit applications</li>
+            <li>Microchip & vaccination record management</li>
+            <li>CBSA/USDA documentation review</li>
+            <li>Customs clearance assistance</li>
+          </ul>
+        </div>
+        <div class="content-block__media">
+          <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=900&q=80" alt="Documentation" loading="lazy">
+        </div>
+      </div>
+
+      <!-- Service 3: Container & Equipment -->
+      <div class="content-block" style="margin-bottom: var(--space-2xl);">
+        <div class="content-block__text">
+          <span class="section-label">Equipment</span>
+          <h2>IATA-Approved Transport Containers</h2>
+          <p>We provide premium, IATA-compliant transport containers sized for your pet's exact dimensions. Proper fit is critical — too small causes stress, too large risks injury during transit.</p>
+          <ul class="feature-list">
+            <li>Professional sizing consultation</li>
+            <li>ISO-standard containers available</li>
+            <li>Ventilation and temperature management</li>
+            <li>Water dishes and absorbent bedding included</li>
+            <li>Delivery to your door before travel</li>
+          </ul>
+        </div>
+        <div class="content-block__media">
+          <img src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=900&q=80" alt="Pet container" loading="lazy">
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ACCREDITATION BAR -->
+  <section style="border-top: 1px solid var(--warm-gray-100); border-bottom: 1px solid var(--warm-gray-100); padding: var(--space-xl) 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); text-align: center;">
+        <div>
+          <i class="fas fa-award" style="font-size: 2rem; color: var(--accent); margin-bottom: 1rem; display: block;"></i>
+          <h3 style="font-size: 1.125rem; margin-bottom: 0.25rem;">IATA Certified</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted);">International Air Transport Association</p>
+        </div>
+        <div>
+          <i class="fas fa-certificate" style="font-size: 2rem; color: var(--accent); margin-bottom: 1rem; display: block;"></i>
+          <h3 style="font-size: 1.125rem; margin-bottom: 0.25rem;">USDA Accredited</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted);">United States Department of Agriculture</p>
+        </div>
+        <div>
+          <i class="fas fa-shield-alt" style="font-size: 2rem; color: var(--accent); margin-bottom: 1rem; display: block;"></i>
+          <h3 style="font-size: 1.125rem; margin-bottom: 0.25rem;">Full Insurance</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted);">Comprehensive transit coverage for all shipments</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container">
+      <span class="section-label">Get a Quote</span>
+      <h2>Every journey begins<br>with a single step.</h2>
+      <p>Tell us about your pet and we'll build a custom transport plan.</p>
+      <a href="/quote" class="btn-primary" style="display: inline-flex; width: auto; text-decoration: none;">
+        Request a Quote <i class="fas fa-arrow-right" style="font-size: 0.7rem;"></i>
+      </a>
+    </div>
+  </section>
+
+<%- include('partials/footer') %>
