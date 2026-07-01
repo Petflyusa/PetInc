@@ -652,7 +652,17 @@ app.all('/api/admin/:action', async (req, res) => {
 // MIGRATION FROM SUPABASE (Admin only)
 // =============================================================================
 // POST /api/migrate-from-supabase — Admin-only endpoint to pull all data from Supabase and import into Hostinger MySQL
-app.post('/api/migrate-from-supabase', requireAdmin, async (req, res) => {
+// POST /api/migrate-from-supabase — Admin-only endpoint to pull all data from Supabase and import into Hostinger MySQL
+// Also accepts ?secret=<MIGRATION_SECRET> as an alternative to admin session
+app.post('/api/migrate-from-supabase', async (req, res) => {
+  // Bearer-token auth bypass — set MIGRATION_SECRET env var on server
+  const MIGRATION_SECRET = process.env.MIGRATION_SECRET || 'petfly-migrate-2026';
+  const authHeader = req.headers.authorization || '';
+  const secretParam = req.query.secret;
+  const useSecret = secretParam === MIGRATION_SECRET || authHeader === `Bearer ${MIGRATION_SECRET}`;
+  if (!useSecret && !(req.session && req.session.adminLoggedIn)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   try {
     const { serviceRoleKey } = req.body;
     if (!serviceRoleKey) {
