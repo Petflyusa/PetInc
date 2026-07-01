@@ -1124,6 +1124,39 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   }
 });
 
+// DEBUG: Run ALTER TABLE for all missing columns (bypasses addColIfMissing issues)
+app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
+  try {
+    const results = {};
+    const tables_cols = {
+      'clients': ['address TEXT'],
+      'client_pets': ["status VARCHAR(50) DEFAULT 'Active'", 'status_color VARCHAR(100)'],
+      'client_services': ["current_status VARCHAR(50) DEFAULT 'pending'", 'payment_record TEXT', 'notes TEXT'],
+      'client_quotes': ["payment_request_type VARCHAR(20) DEFAULT 'full'", 'payment_request_stage VARCHAR(20)', 'payment_record TEXT'],
+      'service_sop': ['title VARCHAR(200)'],
+    };
+    for (const [table, colDefs] of Object.entries(tables_cols)) {
+      results[table] = {};
+      for (const colDef of colDefs) {
+        const colName = colDef.split(' ')[0];
+        try {
+          await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN ${colDef}`);
+          results[table][colName] = 'added';
+        } catch (e) {
+          if (e.code === 'ER_DUP_FIELDNAME') {
+            results[table][colName] = 'already exists';
+          } else {
+            results[table][colName] = 'error: ' + e.code;
+          }
+        }
+      }
+    }
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // =============================================================================
 // ADMIN SPA STATIC FILES
 // =============================================================================
