@@ -658,12 +658,14 @@ app.get('/api/setup', async (req, res) => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) UNIQUE,
         password VARCHAR(255),
-        full_name VARCHAR(100),
-        email VARCHAR(100),
+        full_name VARCHAR(255),
+        email VARCHAR(255),
         phone VARCHAR(100),
+        address TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_pets (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -680,6 +682,10 @@ app.get('/api/setup', async (req, res) => {
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
     `);
+    // Add missing columns to existing client_pets table (for schemas created before these columns existed)
+    await pool.query("ALTER TABLE client_pets ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active'").catch(() => {});
+    await pool.query("ALTER TABLE client_pets ADD COLUMN IF NOT EXISTS status_color VARCHAR(100)").catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_services (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -690,13 +696,19 @@ app.get('/api/setup', async (req, res) => {
         dest_country VARCHAR(100),
         dest_city VARCHAR(100),
         transport_type VARCHAR(50),
-        travel_date VARCHAR(100),
-        current_status VARCHAR(50) DEFAULT 'consultation',
+        travel_date DATE,
+        current_status VARCHAR(50) DEFAULT 'pending',
+        notes TEXT,
+        payment_record TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
         FOREIGN KEY (pet_id) REFERENCES client_pets(id) ON DELETE SET NULL
       )
     `);
+    // Add missing columns to existing client_services table
+    await pool.query("ALTER TABLE client_services ADD COLUMN IF NOT EXISTS current_status VARCHAR(50) DEFAULT 'pending'").catch(() => {});
+    await pool.query("ALTER TABLE client_services ADD COLUMN IF NOT EXISTS payment_record TEXT").catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS service_sop (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -709,7 +721,8 @@ app.get('/api/setup', async (req, res) => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (service_id) REFERENCES client_services(id) ON DELETE CASCADE
       )
-    `);
+    `).catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_messages (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -721,7 +734,8 @@ app.get('/api/setup', async (req, res) => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
-    `);
+    `).catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_documents (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -735,7 +749,8 @@ app.get('/api/setup', async (req, res) => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
-    `);
+    `).catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_quotes (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -751,7 +766,8 @@ app.get('/api/setup', async (req, res) => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
-    `);
+    `).catch(() => {});
+
     // Create a demo test account
     await pool.query(`
       INSERT IGNORE INTO clients (username, password, full_name, email, phone)
