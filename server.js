@@ -1337,6 +1337,196 @@ app.delete('/api/admin/delete_client', requireAdmin, async (req, res) => {
   }
 });
 
+// =============================================================================
+// ADMIN COUNTRY REGULATIONS CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_countries
+app.get('/api/admin/list_countries', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM country_regulations ORDER BY country_name'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List countries error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_country?id=...
+app.get('/api/admin/get_country', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Country ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM country_regulations WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Country not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get country error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/add_country
+app.post('/api/admin/add_country', requireAdmin, async (req, res) => {
+  try {
+    const { country_code, country_name, pet_types, microchip, rabies_vaccination,
+            health_certificate, import_permit, quarantine_days, additional_requirements,
+            preparation_time, restricted_breeds, contact_info } = req.body;
+    if (!country_code || !country_name) return res.status(400).json({ error: 'Country code and name required' });
+    const [result] = await pool.execute(
+      `INSERT INTO country_regulations 
+       (country_code, country_name, pet_types, microchip, rabies_vaccination,
+        health_certificate, import_permit, quarantine_days, additional_requirements,
+        preparation_time, restricted_breeds, contact_info)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [country_code, country_name, pet_types || '', microchip || '', rabies_vaccination || '',
+       health_certificate || '', import_permit || '', quarantine_days || 0, additional_requirements || '',
+       preparation_time || '', restricted_breeds || '', contact_info || '']
+    );
+    res.status(201).json({ id: result.insertId, message: 'Country created' });
+  } catch (err) {
+    console.error('Add country error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/update_country
+app.post('/api/admin/update_country', requireAdmin, async (req, res) => {
+  try {
+    const { id, country_code, country_name, pet_types, microchip, rabies_vaccination,
+            health_certificate, import_permit, quarantine_days, additional_requirements,
+            preparation_time, restricted_breeds, contact_info } = req.body;
+    if (!id) return res.status(400).json({ error: 'Country ID required' });
+    await pool.execute(
+      `UPDATE country_regulations SET 
+       country_code = ?, country_name = ?, pet_types = ?, microchip = ?,
+       rabies_vaccination = ?, health_certificate = ?, import_permit = ?,
+       quarantine_days = ?, additional_requirements = ?, preparation_time = ?,
+       restricted_breeds = ?, contact_info = ?
+       WHERE id = ?`,
+      [country_code || '', country_name || '', pet_types || '', microchip || '',
+       rabies_vaccination || '', health_certificate || '', import_permit || '',
+       quarantine_days || 0, additional_requirements || '', preparation_time || '',
+       restricted_breeds || '', contact_info || '', id]
+    );
+    res.json({ message: 'Country updated' });
+  } catch (err) {
+    console.error('Update country error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/delete_country?id=...
+app.delete('/api/admin/delete_country', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Country ID required' });
+    const [result] = await pool.execute('DELETE FROM country_regulations WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Country not found' });
+    res.json({ message: 'Country deleted' });
+  } catch (err) {
+    console.error('Delete country error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// ADMIN AIRLINE REGULATIONS CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_airlines
+app.get('/api/admin/list_airlines', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM airline_regulations ORDER BY airline_name'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List airlines error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_airline?id=...
+app.get('/api/admin/get_airline', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Airline ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM airline_regulations WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Airline not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get airline error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/add_airline
+app.post('/api/admin/add_airline', requireAdmin, async (req, res) => {
+  try {
+    const { airline_name, carry_on, checked_bag, cargo, pet_fee,
+            size_limits, breed_restrictions, booking_info, crate_requirements } = req.body;
+    if (!airline_name) return res.status(400).json({ error: 'Airline name required' });
+    const [result] = await pool.execute(
+      `INSERT INTO airline_regulations 
+       (airline_name, carry_on, checked_bag, cargo, pet_fee,
+        size_limits, breed_restrictions, booking_info, crate_requirements)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [airline_name, carry_on || '', checked_bag || '', cargo || '', pet_fee || '',
+       size_limits || '', breed_restrictions || '', booking_info || '', crate_requirements || '']
+    );
+    res.status(201).json({ id: result.insertId, message: 'Airline created' });
+  } catch (err) {
+    console.error('Add airline error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/update_airline
+app.post('/api/admin/update_airline', requireAdmin, async (req, res) => {
+  try {
+    const { id, airline_name, carry_on, checked_bag, cargo, pet_fee,
+            size_limits, breed_restrictions, booking_info, crate_requirements } = req.body;
+    if (!id) return res.status(400).json({ error: 'Airline ID required' });
+    await pool.execute(
+      `UPDATE airline_regulations SET 
+       airline_name = ?, carry_on = ?, checked_bag = ?, cargo = ?,
+       pet_fee = ?, size_limits = ?, breed_restrictions = ?,
+       booking_info = ?, crate_requirements = ?
+       WHERE id = ?`,
+      [airline_name || '', carry_on || '', checked_bag || '', cargo || '',
+       pet_fee || '', size_limits || '', breed_restrictions || '',
+       booking_info || '', crate_requirements || '', id]
+    );
+    res.json({ message: 'Airline updated' });
+  } catch (err) {
+    console.error('Update airline error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/delete_airline?id=...
+app.delete('/api/admin/delete_airline', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Airline ID required' });
+    const [result] = await pool.execute('DELETE FROM airline_regulations WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Airline not found' });
+    res.json({ message: 'Airline deleted' });
+  } catch (err) {
+    console.error('Delete airline error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DEBUG: Run ALTER TABLE for all missing columns (bypasses addColIfMissing issues)
 app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
   try {
