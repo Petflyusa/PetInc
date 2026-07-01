@@ -674,6 +674,26 @@ app.post('/api/migrate-from-supabase', requireAdmin, async (req, res) => {
       return response.json();
     };
 
+    // Ensure all columns exist before migrating (idempotent ALTER TABLE ADD COLUMN)
+    // Ensure all columns exist before migrating — NEVER throws, runs to completion
+    const ensureCol = (table, col, def) => {
+      pool.query(`ALTER TABLE \`${table}\` ADD COLUMN ${col} ${def}`)
+        .catch(e => { if (e.code !== 'ER_DUP_FIELDNAME') console.error(`ensureCol ${table}.${col}: ${e.code}`); });
+    };
+    ensureCol('clients', 'address', 'TEXT');
+    ensureCol('client_pets', 'status', "VARCHAR(50) DEFAULT 'Active'");
+    ensureCol('client_pets', 'status_color', 'VARCHAR(100)');
+    ensureCol('client_services', 'current_status', "VARCHAR(50) DEFAULT 'pending'");
+    ensureCol('client_services', 'payment_record', 'TEXT');
+    ensureCol('client_services', 'notes', 'TEXT');
+    ensureCol('client_quotes', 'payment_request_type', "VARCHAR(20) DEFAULT 'full'");
+    ensureCol('client_quotes', 'payment_request_stage', 'VARCHAR(20)');
+    ensureCol('client_quotes', 'payment_record', 'TEXT');
+    ensureCol('service_sop', 'title', 'VARCHAR(200)');
+    ensureCol('service_sop', 'description', 'TEXT');
+    // Wait for all ALTERs to complete before proceeding
+    await new Promise(r => setTimeout(r, 2000));
+
     const counts = { clients: 0, pets: 0, services: 0, sop: 0, quotes: 0, documents: 0 };
 
     // ========== MIGRATE CLIENTS ==========
