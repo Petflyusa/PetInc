@@ -241,6 +241,22 @@ nav a.active::after {
 
 nav a.active { color: var(--charcoal); }
 
+.client-login-btn {
+  background: var(--charcoal);
+  color: #fff !important;
+  padding: 6px 14px !important;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem !important;
+}
+
+.client-login-btn::after { display: none !important; }
+
+.client-login-btn:hover {
+  background: var(--warm-gray) !important;
+  color: #fff !important;
+}
+
 .menu-toggle {
   display: none;
   flex-direction: column;
