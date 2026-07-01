@@ -834,8 +834,23 @@ app.get('/api/setup', async (req, res) => {
       )
     `);
 
-    await pool.query("ALTER TABLE clients ADD COLUMN IF NOT EXISTS address TEXT").catch(() => {});
-    await pool.query("ALTER TABLE client_services ADD COLUMN IF NOT EXISTS notes TEXT").catch(() => {});
+    // Add missing columns to existing tables (MySQL doesn't support ADD COLUMN IF NOT EXISTS — check first)
+    const addColIfMissing = async (table, col, def) => {
+      try {
+        const [rows] = await pool.query(`SHOW COLUMNS FROM \`${table}\` LIKE ?`, [col]);
+        if (rows.length === 0) await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN ${col} ${def}`);
+      } catch (e) { /* ignore */ }
+    };
+    await addColIfMissing('clients', 'address', 'TEXT');
+    await addColIfMissing('client_pets', 'status', "VARCHAR(50) DEFAULT 'Active'");
+    await addColIfMissing('client_pets', 'status_color', 'VARCHAR(100)');
+    await addColIfMissing('client_services', 'current_status', "VARCHAR(50) DEFAULT 'pending'");
+    await addColIfMissing('client_services', 'payment_record', 'TEXT');
+    await addColIfMissing('client_services', 'notes', 'TEXT');
+    await addColIfMissing('client_quotes', 'payment_request_type', "VARCHAR(20) DEFAULT 'full'");
+    await addColIfMissing('client_quotes', 'payment_request_stage', 'VARCHAR(20)');
+    await addColIfMissing('client_quotes', 'payment_record', 'TEXT');
+    await addColIfMissing('service_sop', 'title', 'VARCHAR(200)');
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_pets (
