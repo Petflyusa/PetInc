@@ -823,7 +823,9 @@ app.get('/api/client/data', requireClient, async (req, res) => {
     const clientId = req.session.clientId;
     if (!clientId) return res.status(401).json({ error: 'Not logged in' });
 
-    const [[client], [pets], [services], [quotes], [docs], [messages]] = await Promise.all([
+    // Ensure each result is a plain array (pool.execute may return rows directly or in [rows, fields] format)
+    const toArray = (r) => Array.isArray(r) ? (Array.isArray(r[0]) ? r[0] : r) : [r];
+    const [[clientRows], [petsRows], [servicesRows], [quotesRows], [docsRows], [messagesRows]] = await Promise.all([
       pool.execute('SELECT id, username, full_name, email, phone FROM clients WHERE id = ?', [clientId]),
       pool.execute('SELECT * FROM client_pets WHERE client_id = ?', [clientId]),
       pool.execute('SELECT * FROM client_services WHERE client_id = ?', [clientId]),
@@ -831,26 +833,32 @@ app.get('/api/client/data', requireClient, async (req, res) => {
       pool.execute('SELECT * FROM client_documents WHERE client_id = ?', [clientId]),
       pool.execute('SELECT * FROM client_messages WHERE client_id = ? ORDER BY created_at ASC', [clientId])
     ]);
+    const clientArr = toArray(clientRows);
+    const petsArr = toArray(petsRows);
+    const servicesArr = toArray(servicesRows);
+    const quotesArr = toArray(quotesRows);
+    const docsArr = toArray(docsRows);
+    const messagesArr = toArray(messagesRows);
 
     // Get SOP for each service
-    const servicesWithSOP = await Promise.all((services[0] || []).map(async (svc) => {
-      const [sop] = await pool.execute('SELECT * FROM service_sop WHERE service_id = ? ORDER BY id', [svc.id]);
-      return { ...svc, stages: sop };
+    const servicesWithSOP = await Promise.all(servicesArr.map(async (svc) => {
+      const [sopRows] = await pool.execute('SELECT * FROM service_sop WHERE service_id = ? ORDER BY id', [svc.id]);
+      return { ...svc, stages: toArray(sopRows) };
     }));
 
     // Parse pet_quotes JSON
-    const quotesParsed = (quotes[0] || []).map(q => ({
+    const quotesParsed = quotesArr.map(q => ({
       ...q,
       petQuotes: q.pet_quotes ? JSON.parse(q.pet_quotes) : []
     }));
 
     res.json({
-      client: client[0] || null,
-      pets: pets[0] || [],
+      client: clientArr[0] || null,
+      pets: petsArr,
       services: servicesWithSOP,
       quotes: quotesParsed,
-      documents: docs[0] || [],
-      messages: messages[0] || []
+      documents: docsArr,
+      messages: messagesArr
     });
   } catch (err) {
     console.error('Client data error:', err);
