@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
@@ -64,7 +65,18 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'petinc-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: { maxAge: 24 * 60 * 60 * 1000 },
+  store: new MySQLStore({
+    host: process.env.DB_HOST || 'srv1134.hstgr.io',
+    port: parseInt(process.env.DB_PORT || '3306'),
+    user: process.env.DB_USER || 'u884869254_petflyinc',
+    password: process.env.DB_PASSWORD || 'Jz10191019@@',
+    database: process.env.DB_NAME || 'u884869254_petflyinc',
+    clearExpired: true,
+    autoRemove: 'interval',
+    autoRemoveInterval: 60,
+    createDatabaseTable: true
+  })
 }));
 
 // Admin auth middleware
