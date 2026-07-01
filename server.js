@@ -1651,6 +1651,184 @@ app.delete('/api/admin/delete_contact', requireAdmin, async (req, res) => {
   }
 });
 
+// =============================================================================
+// ADMIN SERVICES (JOURNEYS) CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_services
+app.get('/api/admin/list_services', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT cs.*, c.full_name as client_name, cp.pet_name
+       FROM client_services cs
+       LEFT JOIN clients c ON cs.client_id = c.id
+       LEFT JOIN client_pets cp ON cs.pet_id = cp.id
+       ORDER BY cs.created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List services error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_service?id=...
+app.get('/api/admin/get_service', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Service ID required' });
+    const [rows] = await pool.execute(
+      `SELECT cs.*, c.full_name as client_name, cp.pet_name
+       FROM client_services cs
+       LEFT JOIN clients c ON cs.client_id = c.id
+       LEFT JOIN client_pets cp ON cs.pet_id = cp.id
+       WHERE cs.id = ?`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Service not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get service error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/add_service
+app.post('/api/admin/add_service', requireAdmin, async (req, res) => {
+  try {
+    const { client_id, pet_id, origin_country, origin_city, dest_country, dest_city,
+            transport_type, travel_date, current_status } = req.body;
+    if (!client_id) return res.status(400).json({ error: 'Client ID required' });
+    const [result] = await pool.execute(
+      `INSERT INTO client_services (client_id, pet_id, origin_country, origin_city, dest_country, dest_city, transport_type, travel_date, current_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [client_id, pet_id || null, origin_country || '', origin_city || '', dest_country || '',
+       dest_city || '', transport_type || '', travel_date || null, current_status || 'pending']
+    );
+
+    // Create default SOP stages
+    const stages = ['consultation', 'documents', 'transfer_booking', 'pet_pickup', 'safe_transport', 'delivery'];
+    for (const stage of stages) {
+      await pool.execute(
+        'INSERT INTO service_sop (service_id, stage, status) VALUES (?, ?, ?)',
+        [result.insertId, stage, 'pending']
+      );
+    }
+
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Add service error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/update_service
+app.post('/api/admin/update_service', requireAdmin, async (req, res) => {
+  try {
+    const { id, client_id, pet_id, origin_country, origin_city, dest_country, dest_city,
+            transport_type, travel_date, current_status } = req.body;
+    if (!id) return res.status(400).json({ error: 'Service ID required' });
+    await pool.execute(
+      `UPDATE client_services SET client_id=?, pet_id=?, origin_country=?, origin_city=?,
+       dest_country=?, dest_city=?, transport_type=?, travel_date=?, current_status=? WHERE id=?`,
+      [client_id||null, pet_id||null, origin_country||'', origin_city||'', dest_country||'',
+       dest_city||'', transport_type||'', travel_date||null, current_status||'pending', id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update service error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/delete_service?id=...
+app.delete('/api/admin/delete_service', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Service ID required' });
+    await pool.execute('DELETE FROM service_sop WHERE service_id = ?', [id]);
+    const [result] = await pool.execute('DELETE FROM client_services WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Service not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete service error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// ADMIN SERVICE SOP ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/get_sop?service_id=...
+app.get('/api/admin/get_sop', requireAdmin, async (req, res) => {
+  try {
+    const { service_id } = req.query;
+    if (!service_id) return res.status(400).json({ error: 'Service ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM service_sop WHERE service_id = ? ORDER BY id ASC',
+      [service_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get SOP error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/update_sop
+app.post('/api/admin/update_sop', requireAdmin, async (req, res) => {
+  try {
+    const { service_id, stage, status } = req.body;
+    if (!service_id || !stage) return res.status(400).json({ error: 'Service ID and stage required' });
+    const completedDate = status === 'completed' ? new Date().toISOString().split('T')[0] : null;
+    await pool.execute(
+      'UPDATE service_sop SET status = ?, completed_date = ? WHERE service_id = ? AND stage = ?',
+      [status, completedDate, service_id, stage]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update SOP error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// ADMIN CLIENT MESSAGES ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/get_messages?client_id=...
+app.get('/api/admin/get_messages', requireAdmin, async (req, res) => {
+  try {
+    const { client_id } = req.query;
+    if (!client_id) return res.status(400).json({ error: 'Client ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM client_messages WHERE client_id = ? ORDER BY created_at DESC',
+      [client_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get messages error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/send_message
+app.post('/api/admin/send_message', requireAdmin, async (req, res) => {
+  try {
+    const { client_id, sender, subject, message } = req.body;
+    if (!client_id || !message) return res.status(400).json({ error: 'Client ID and message required' });
+    const [result] = await pool.execute(
+      'INSERT INTO client_messages (client_id, sender, subject, message) VALUES (?, ?, ?, ?)',
+      [client_id, sender || 'Admin', subject || '', message]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Send message error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DEBUG: Run ALTER TABLE for all missing columns (bypasses addColIfMissing issues)
 app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
   try {
