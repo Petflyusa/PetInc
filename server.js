@@ -852,6 +852,12 @@ app.get('/api/setup', async (req, res) => {
     await addColIfMissing('client_quotes', 'payment_record', 'TEXT');
     await addColIfMissing('service_sop', 'title', 'VARCHAR(200)');
 
+    // DEBUG: verify columns were added
+    try {
+      const [cols] = await pool.query('SHOW COLUMNS FROM `service_sop`');
+      console.log('service_sop columns:', cols.map(c => c.Field));
+    } catch(e) { console.error('debug error:', e.message); }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_pets (
         id INT AUTO_INCREMENT PRIMARY KEY,
