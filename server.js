@@ -1175,6 +1175,96 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
   }
 });
 
+// =============================================================================
+// ADMIN CLIENT CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_clients
+app.get('/api/admin/list_clients', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, username, full_name, email, phone, address, created_at FROM clients ORDER BY id DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List clients error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_client?id=...
+app.get('/api/admin/get_client', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Client ID required' });
+    const [rows] = await pool.execute(
+      'SELECT id, username, full_name, email, phone, address, created_at FROM clients WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get client error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/add_client
+app.post('/api/admin/add_client', requireAdmin, async (req, res) => {
+  try {
+    const { username, password, full_name, email, phone, address } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await pool.execute(
+      'INSERT INTO clients (username, password, full_name, email, phone, address) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, full_name || '', email || '', phone || '', address || '']
+    );
+    res.status(201).json({ id: result.insertId, message: 'Client created' });
+  } catch (err) {
+    console.error('Add client error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/update_client
+app.post('/api/admin/update_client', requireAdmin, async (req, res) => {
+  try {
+    const { id, username, full_name, email, phone, address, password } = req.body;
+    if (!id) return res.status(400).json({ error: 'Client ID required' });
+
+    let query, params;
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      query = 'UPDATE clients SET username = ?, full_name = ?, email = ?, phone = ?, address = ?, password = ? WHERE id = ?';
+      params = [username || '', full_name || '', email || '', phone || '', address || '', hashedPassword, id];
+    } else {
+      query = 'UPDATE clients SET username = ?, full_name = ?, email = ?, phone = ?, address = ? WHERE id = ?';
+      params = [username || '', full_name || '', email || '', phone || '', address || '', id];
+    }
+
+    const [result] = await pool.execute(query, params);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Client not found' });
+    res.json({ message: 'Client updated' });
+  } catch (err) {
+    console.error('Update client error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/delete_client?id=...
+app.delete('/api/admin/delete_client', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Client ID required' });
+    const [result] = await pool.execute('DELETE FROM clients WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Client not found' });
+    res.json({ message: 'Client deleted' });
+  } catch (err) {
+    console.error('Delete client error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DEBUG: Run ALTER TABLE for all missing columns (bypasses addColIfMissing issues)
 app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
   try {
