@@ -4,6 +4,7 @@ const path = require('path');
 const session = require('express-session');
 const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
 const { initializeDatabase } = require('./db');
 
 const app = express();
@@ -644,6 +645,173 @@ app.all('/api/admin/:action', async (req, res) => {
   } catch (err) {
     console.error('Admin API error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// MIGRATION FROM SUPABASE (Admin only)
+// =============================================================================
+// POST /api/migrate-from-supabase — Admin-only endpoint to pull all data from Supabase and import into Hostinger MySQL
+app.post('/api/migrate-from-supabase', requireAdmin, async (req, res) => {
+  try {
+    const { serviceRoleKey } = req.body;
+    if (!serviceRoleKey) {
+      return res.status(400).json({ error: 'serviceRoleKey is required' });
+    }
+
+    const supabaseUrl = 'https://tfsacppyasdrexjrsjev.supabase.co/rest/v1';
+    const headers = {
+      'Authorization': `Bearer ${serviceRoleKey}`,
+      'apikey': serviceRoleKey,
+      'Content-Type': 'application/json'
+    };
+
+    const fetchFromSupabase = async (table) => {
+      const response = await fetch(`${supabaseUrl}/${table}`, { headers });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${table}: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    };
+
+    const counts = { clients: 0, pets: 0, services: 0, sop: 0, quotes: 0, documents: 0 };
+
+    // ========== MIGRATE CLIENTS ==========
+    // Supabase clients: { id, name, initials, location, address, phone, email, password, status }
+    // Our schema:       { id, username, password, full_name, email, phone, address }
+    const supabaseClients = await fetchFromSupabase('clients');
+    for (const client of supabaseClients) {
+      // Use email prefix as username (no username field in Supabase)
+      const username = client.email ? client.email.split('@')[0] : `client_${client.id}`;
+      const hashedPassword = await bcrypt.hash('petfly2024', 10);
+      const [result] = await pool.execute(
+        `INSERT IGNORE INTO clients (id, username, password, full_name, email, phone, address)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [client.id, username, hashedPassword, client.name || '', client.email || '', client.phone || '', client.address || '']
+      );
+      if (result.affectedRows > 0) counts.clients++;
+    }
+
+    // ========== MIGRATE PETS ==========
+    // Supabase pets: { id, client_id, name, type, breed, origin, destination, image, status, status_color, details: {weight, microchip, dob, gender, color} }
+    // Our schema:    { id, client_id, pet_name, pet_type, breed, weight, microchip, photo_url, status, status_color }
+    const supabasePets = await fetchFromSupabase('pets');
+    for (const pet of supabasePets) {
+      const details = typeof pet.details === 'string' ? JSON.parse(pet.details || '{}') : (pet.details || {});
+      const [result] = await pool.execute(
+        `INSERT IGNORE INTO client_pets (id, client_id, pet_name, pet_type, breed, weight, microchip, photo_url, status, status_color)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          pet.id,
+          pet.client_id,
+          pet.name || '',
+          pet.type || '',         // "Canine" / "Feline" — SPA handles this via getPetEmoji()
+          pet.breed || '',
+          details.weight || '',   // weight is inside details JSON
+          details.microchip || '', // microchip is inside details JSON
+          pet.image || '',        // Supabase uses "image" not "photo_url"
+          pet.status || 'Active',
+          pet.status_color || ''
+        ]
+      );
+      if (result.affectedRows > 0) counts.pets++;
+    }
+
+    // ========== MIGRATE JOURNEYS → client_services ==========
+    // Supabase journeys: { id, client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages: [...] }
+    // Our schema:       { id, client_id, pet_id, origin_city, dest_city, transport_type, travel_date, current_status, notes }
+    const supabaseJourneys = await fetchFromSupabase('journeys');
+    for (const journey of supabaseJourneys) {
+      const notes = JSON.stringify({
+        airline: journey.airline || null,
+        flight_no: journey.flight_no || null,
+        tracking_id: journey.tracking_id || null,
+        overall_progress: journey.overall_progress || 0
+      });
+      const [result] = await pool.execute(
+        `INSERT IGNORE INTO client_services (id, client_id, pet_id, origin_city, dest_city, transport_type, travel_date, current_status, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          journey.id,
+          journey.client_id,
+          journey.pet_id || null,
+          journey.current_location || '',  // current_location = departure city
+          journey.estimated_arrival || '',  // estimated_arrival = destination / ETA text
+          'air_cargo',
+          null,                             // travel_date not available in journeys
+          journey.overall_progress === 100 ? 'completed' : journey.overall_progress > 0 ? 'in_progress' : 'consultation',
+          notes
+        ]
+      );
+      if (result.affectedRows > 0) counts.services++;
+
+      // ========== MIGRATE SOP STAGES (embedded in journey JSON) ==========
+      // Supabase stages: [{ id, date, name, title, status, description }]
+      if (journey.stages && Array.isArray(journey.stages)) {
+        for (const stage of journey.stages) {
+          const [sopResult] = await pool.execute(
+            `INSERT IGNORE INTO service_sop (id, service_id, stage, status, title, description, completed_date)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              typeof stage.id === 'string' ? parseInt(stage.id.replace(/\D/g, '')) || Math.floor(Math.random() * 999999) : stage.id,
+              journey.id,
+              stage.name || '',       // e.g. "CONSULTING", "BOOKING"
+              stage.status || 'pending', // "completed" | "in-progress" | "upcoming"
+              stage.title || '',
+              stage.description || '',
+              stage.date || ''        // completed_date
+            ]
+          );
+          if (sopResult.affectedRows > 0) counts.sop++;
+        }
+      }
+    }
+
+    // ========== MIGRATE QUOTES ==========
+    // Supabase quotes: { id, client_id, ref, route, pet_quotes (JSON array), status, payment_status, payment_request_type, payment_request_stage, payment_record }
+    // Our schema:      { id, client_id, ref, route, pet_quotes (JSON string), status, payment_status, payment_request_type, payment_request_stage, payment_record }
+    const supabaseQuotes = await fetchFromSupabase('quotes');
+    for (const quote of supabaseQuotes) {
+      const petQuotesJson = quote.pet_quotes
+        ? (typeof quote.pet_quotes === 'string' ? quote.pet_quotes : JSON.stringify(quote.pet_quotes))
+        : '[]';
+      const [result] = await pool.execute(
+        `INSERT IGNORE INTO client_quotes (id, client_id, ref, route, pet_quotes, status, payment_status, payment_request_type, payment_request_stage, payment_record)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          quote.id,
+          quote.client_id,
+          quote.ref || '',
+          quote.route || '',
+          petQuotesJson,
+          quote.status || 'draft',
+          quote.payment_status || 'unpaid',
+          quote.payment_request_type || 'full',
+          quote.payment_request_stage || 'deposit',
+          quote.payment_record ? (typeof quote.payment_record === 'string' ? quote.payment_record : JSON.stringify(quote.payment_record)) : '[]'
+        ]
+      );
+      if (result.affectedRows > 0) counts.quotes++;
+    }
+
+    // ========== MIGRATE DOCUMENTS ==========
+    // Supabase documents: { id, client_id, pet_id, name, type, expiry_date, status, icon, file_url }
+    // Our schema:         { id, client_id, pet_id, name, type, expiry_date, status, file_url }
+    const supabaseDocs = await fetchFromSupabase('documents');
+    for (const doc of supabaseDocs) {
+      const [result] = await pool.execute(
+        `INSERT IGNORE INTO client_documents (id, client_id, pet_id, name, type, expiry_date, status, file_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [doc.id, doc.client_id, doc.pet_id || null, doc.name || '', doc.type || '', doc.expiry_date || '', doc.status || '', doc.file_url || '']
+      );
+      if (result.affectedRows > 0) counts.documents++;
+    }
+
+    console.log('Migration complete:', counts);
+    res.json({ success: true, counts });
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
