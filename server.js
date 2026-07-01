@@ -306,6 +306,78 @@ app.get('/admin/logout', (req, res) => {
 // All /api/admin/* routes require auth
 app.use('/api/admin', requireAdmin);
 
+// =============================================================================
+// ADMIN PET CRUD ENDPOINTS (REST-style)
+// =============================================================================
+
+// GET /api/admin/list_pets - List all pets
+app.get('/api/admin/list_pets', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM client_pets ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error('List pets error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_pet - Get single pet by id
+app.get('/api/admin/get_pet', async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Pet ID required' });
+    const [rows] = await pool.execute('SELECT * FROM client_pets WHERE id = ?', [id]);
+    res.json(rows[0] || null);
+  } catch (err) {
+    console.error('Get pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/add_pet - Add a new pet
+app.post('/api/admin/add_pet', async (req, res) => {
+  try {
+    const { client_id, pet_name, pet_type, breed, weight, microchip, photo_url } = req.body;
+    const [result] = await pool.execute(
+      'INSERT INTO client_pets (client_id, pet_name, pet_type, breed, weight, microchip, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [client_id, pet_name, pet_type, breed, weight, microchip, photo_url]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Add pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/update_pet - Update an existing pet
+app.post('/api/admin/update_pet', async (req, res) => {
+  try {
+    const { id, client_id, pet_name, pet_type, breed, weight, microchip, photo_url } = req.body;
+    if (!id) return res.status(400).json({ error: 'Pet ID required' });
+    await pool.execute(
+      'UPDATE client_pets SET client_id = ?, pet_name = ?, pet_type = ?, breed = ?, weight = ?, microchip = ?, photo_url = ? WHERE id = ?',
+      [client_id, pet_name, pet_type, breed, weight, microchip, photo_url, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/delete_pet - Delete a pet
+app.delete('/api/admin/delete_pet', async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Pet ID required' });
+    await pool.execute('DELETE FROM client_pets WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Unified admin API handler for all CRUD operations
 app.all('/api/admin/:action', async (req, res) => {
   const { action } = req.params;
