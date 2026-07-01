@@ -306,9 +306,14 @@ nav a.active { color: var(--charcoal); }
 .hero {
   position: relative;
   width: 100%;
+  min-height: 100vh;
   min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
   overflow: hidden;
   background: var(--charcoal-deep);
 }
@@ -354,6 +359,7 @@ nav a.active { color: var(--charcoal); }
   padding: 0 var(--space-md) var(--space-xl);
   max-width: var(--max-w);
   margin: 0 auto;
+  flex: 0 0 auto;
 }
 
 .hero-content .container {
