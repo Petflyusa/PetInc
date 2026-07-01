@@ -752,7 +752,19 @@ app.get('/api/setup', async (req, res) => {
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       )
     `);
-    res.json({ success: true, message: 'All tables created successfully' });
+    // Create a demo test account
+    await pool.query(`
+      INSERT IGNORE INTO clients (username, password, full_name, email, phone)
+      VALUES ('demo', 'demo', 'Demo Client', 'demo@petflyinc.com', '+1-555-0100')
+    `);
+    // Create a demo pet
+    const [[demoClient]] = await pool.query("SELECT id FROM clients WHERE username = 'demo'");
+    if (demoClient) {
+      await pool.query(`INSERT IGNORE INTO client_pets (client_id, pet_name, pet_type, breed, weight, status) VALUES (?, 'Buddy', 'Dog', 'Golden Retriever', '30kg', 'Active')`, [demoClient.id]);
+      await pool.query(`INSERT IGNORE INTO client_services (client_id, origin_country, origin_city, dest_country, dest_city, transport_type, travel_date, current_status)
+        SELECT id, 'United States', 'New York', 'United Kingdom', 'London', 'air_cargo', '2026-09-15', 'consultation' FROM clients WHERE username = 'demo' LIMIT 1`);
+    }
+    res.json({ success: true, message: 'All tables created successfully' + (demoClient ? ' (demo account: demo/demo)' : '') });
   } catch (err) {
     console.error('Setup error:', err);
     res.status(500).json({ error: err.message });
