@@ -1527,6 +1527,130 @@ app.delete('/api/admin/delete_airline', requireAdmin, async (req, res) => {
   }
 });
 
+// =============================================================================
+// ADMIN QUOTES CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_quotes
+app.get('/api/admin/list_quotes', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM quote_requests ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List quotes error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_quote?id=...
+app.get('/api/admin/get_quote', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Quote ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM quote_requests WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get quote error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/update_quote
+app.post('/api/admin/update_quote', requireAdmin, async (req, res) => {
+  try {
+    const { id, status, notes, name, email, phone, pet_type, breed, weight, age,
+            travel_type, origin, destination, departure_date, return_date,
+            crate_size, special_requirements } = req.body;
+    if (!id) return res.status(400).json({ error: 'Quote ID required' });
+    await pool.execute(
+      `UPDATE quote_requests SET 
+       status = ?, notes = ?, name = ?, email = ?, phone = ?,
+       pet_type = ?, breed = ?, weight = ?, age = ?,
+       travel_type = ?, origin = ?, destination = ?,
+       departure_date = ?, return_date = ?, crate_size = ?,
+       special_requirements = ?
+       WHERE id = ?`,
+      [status || '', notes || '', name || '', email || '', phone || '',
+       pet_type || '', breed || '', weight || '', age || '',
+       travel_type || '', origin || '', destination || '',
+       departure_date || null, return_date || null, crate_size || '',
+       special_requirements || '', id]
+    );
+    res.json({ message: 'Quote updated' });
+  } catch (err) {
+    console.error('Update quote error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/delete_quote?id=...
+app.delete('/api/admin/delete_quote', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Quote ID required' });
+    const [result] = await pool.execute('DELETE FROM quote_requests WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Quote not found' });
+    res.json({ message: 'Quote deleted' });
+  } catch (err) {
+    console.error('Delete quote error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// ADMIN CONTACT MESSAGES CRUD ENDPOINTS
+// =============================================================================
+
+// GET /api/admin/list_contacts
+app.get('/api/admin/list_contacts', requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM contact_messages ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List contacts error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/get_contact?id=...
+app.get('/api/admin/get_contact', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Contact ID required' });
+    const [rows] = await pool.execute(
+      'SELECT * FROM contact_messages WHERE id = ?',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Contact not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get contact error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/delete_contact?id=...
+app.delete('/api/admin/delete_contact', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ error: 'Contact ID required' });
+    const [result] = await pool.execute('DELETE FROM contact_messages WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Contact not found' });
+    res.json({ message: 'Contact deleted' });
+  } catch (err) {
+    console.error('Delete contact error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DEBUG: Run ALTER TABLE for all missing columns (bypasses addColIfMissing issues)
 app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
   try {
