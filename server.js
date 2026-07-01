@@ -1027,10 +1027,10 @@ app.post('/api/client/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const [rows] = await pool.execute(
-      'SELECT id, username, full_name, email, phone FROM clients WHERE username = ? AND password = ?',
-      [username, password]
+      'SELECT id, username, full_name, email, phone, password FROM clients WHERE username = ?',
+      [username]
     );
-    if (rows.length === 0) {
+    if (rows.length === 0 || !(await bcrypt.compare(password, rows[0].password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     const client = rows[0];
