@@ -1,14 +1,621 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pet Fly Inc - Client Portal</title>
-    <script type="module" crossorigin src="/client/assets/index-CVJoSUgX.js"></script>
-    <link rel="stylesheet" crossorigin href="/client/assets/index-Bg0OLj0Q.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script src="/client/message-widget.js" defer></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pet Fly Inc - Client Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #0a4270;
+      --primary-light: #1a6ba8;
+      --primary-dark: #062a4a;
+      --secondary: #00897b;
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --border: #e2e8f0;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --radius: 16px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    body { font-family: 'Hanken Grotesk', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* LOGIN */
+    .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-card { background: var(--surface); border-radius: 24px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: var(--shadow); text-align: center; }
+    .login-logo { width: 64px; height: 64px; background: var(--primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+    .login-logo svg { width: 36px; height: 36px; fill: white; }
+    .login-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .login-card p { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .form-group input { width: 100%; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; font-size: 15px; font-family: inherit; transition: border-color 0.2s; outline: none; }
+    .form-group input:focus { border-color: var(--primary); }
+    .btn-primary { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .login-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; display: none; }
+
+    /* APP */
+    .app { display: none; min-height: 100vh; }
+    .app.active { display: block; }
+
+    /* HEADER */
+    .header { background: var(--primary); color: white; padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .header-logo { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .header-logo-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-logout { background: rgba(255,255,255,0.15); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .btn-logout:hover { background: rgba(255,255,255,0.25); }
+
+    /* MAIN */
+    .main { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+    /* WELCOME */
+    .welcome { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); color: white; border-radius: var(--radius); padding: 32px; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; }
+    .welcome-avatar { width: 72px; height: 72px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; flex-shrink: 0; }
+    .welcome h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .welcome p { opacity: 0.85; font-size: 14px; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); overflow-x: auto; }
+    .tab { flex: 1; min-width: 80px; padding: 10px 16px; border: none; background: transparent; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-muted); font-family: inherit; transition: all 0.2s; white-space: nowrap; }
+    .tab.active { background: var(--primary); color: white; }
+    .tab:not(.active):hover { background: var(--bg); }
+
+    /* SECTION */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* CARDS */
+    .card { background: var(--surface); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+    .card-title { font-size: 16px; font-weight: 700; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .badge-active { background: #dcfce7; color: #16a34a; }
+    .badge-pending { background: #fef9c3; color: #ca8a04; }
+    .badge-inactive { background: #f3f4f6; color: #6b7280; }
+
+    /* PET CARD */
+    .pet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .pet-card { background: var(--surface); border-radius: 12px; padding: 20px; border: 2px solid var(--border); transition: border-color 0.2s; cursor: pointer; }
+    .pet-card:hover { border-color: var(--primary-light); }
+    .pet-card.selected { border-color: var(--primary); background: #f0f7ff; }
+    .pet-icon { width: 48px; height: 48px; background: #e0f2fe; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; font-size: 24px; }
+    .pet-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .pet-info { font-size: 12px; color: var(--text-muted); }
+
+    /* SERVICE CARD */
+    .service-card { border-left: 4px solid var(--primary); }
+    .service-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+    .service-meta-item { font-size: 13px; }
+    .service-meta-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 12px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 4px; transition: width 0.5s ease; }
+
+    /* QUOTE CARD */
+    .quote-amount { font-size: 28px; font-weight: 700; color: var(--primary); }
+    .quote-amount-label { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+    .quote-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .quote-status.draft { background: #fef9c3; color: #ca8a04; }
+    .quote-status.approved { background: #dcfce7; color: #16a34a; }
+    .quote-status.paid { background: #e0f2fe; color: #0284c7; }
+    .payment-details { background: #f8fafc; border-radius: 12px; padding: 20px; margin-top: 16px; border: 1px solid var(--border); }
+    .payment-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .payment-row:last-child { border-bottom: none; }
+    .payment-label { color: var(--text-muted); }
+    .payment-value { font-weight: 600; }
+
+    /* DOCUMENT LIST */
+    .doc-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .doc-item:last-child { border-bottom: none; }
+    .doc-icon { width: 40px; height: 40px; background: #e0f2fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .doc-name { font-size: 14px; font-weight: 600; }
+    .doc-meta { font-size: 12px; color: var(--text-muted); }
+
+    /* MESSAGE FORM */
+    .message-form { display: flex; flex-direction: column; gap: 12px; }
+    .message-input { width: 100%; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 100px; outline: none; transition: border-color 0.2s; }
+    .message-input:focus { border-color: var(--primary); }
+    .message-input.short { min-height: 44px; resize: none; }
+    .message-success { background: #dcfce7; color: #16a34a; padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; display: none; }
+    .message-list { margin-top: 24px; }
+    .message-item { padding: 12px; border-radius: 10px; margin-bottom: 8px; }
+    .message-item.admin { background: #f0f7ff; border-left: 3px solid var(--primary); }
+    .message-item.client { background: #f0fdf4; border-left: 3px solid var(--secondary); }
+    .message-sender { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .message-text { font-size: 14px; line-height: 1.5; }
+    .message-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* LOADING */
+    .loading { display: flex; align-items: center; justify-content: center; padding: 48px; color: var(--text-muted); font-size: 14px; }
+
+    /* ALERT */
+    .alert { background: #fef9c3; border: 1px solid #fde68a; color: #92400e; padding: 16px; border-radius: 12px; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M4.5 12c0-1.5.5-3 1.5-4s2.5-1.5 4-1.5 3 .5 4 1.5 1.5 2.5 1.5 4-.5 3-1.5 4-2.5 1.5-4 1.5-3-.5-4-1.5-1.5-2.5-1.5-4zm9-2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-4.5 8c-2 0-4-1-5-2.5s-1-3.5 0-5 2.5-2 4-2 3 1 4 2.5 1 3.5 0 5-2.5 2-3 2z"/></svg>
+    </div>
+    <h1>Pet Fly Inc</h1>
+    <p>Client Portal — Sign in to track your pet's relocation journey</p>
+    <div id="loginError" class="login-error"></div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="Enter your username" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="loginBtn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app">
+  <header class="header">
+    <div class="header-logo">
+      <div class="header-logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M4.5 12c0-1.5.5-3 1.5-4s2.5-1.5 4-1.5 3 .5 4 1.5 1.5 2.5 1.5 4-.5 3-1.5 4-2.5 1.5-4 1.5-3-.5-4-1.5-1.5-2.5-1.5-4z"/></svg>
+      </div>
+      Pet Fly Inc
+    </div>
+    <div class="header-actions">
+      <button class="btn-logout" id="logoutBtn">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- WELCOME -->
+    <div class="welcome">
+      <div class="welcome-avatar" id="welcomeAvatar">?</div>
+      <div>
+        <h2 id="welcomeName">Welcome back!</h2>
+        <p id="welcomeEmail">Loading...</p>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="journey">Journey</button>
+      <button class="tab" data-tab="quotes">Quotes</button>
+      <button class="tab" data-tab="documents">Documents</button>
+      <button class="tab" data-tab="messages">Messages</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="section active">
+      <div id="dashboardPets" class="pet-grid"></div>
+      <div id="dashboardServices"></div>
+    </div>
+
+    <!-- JOURNEY -->
+    <div id="journey" class="section">
+      <div id="journeyContent"></div>
+    </div>
+
+    <!-- QUOTES -->
+    <div id="quotes" class="section">
+      <div id="quotesContent"></div>
+    </div>
+
+    <!-- DOCUMENTS -->
+    <div id="documents" class="section">
+      <div id="documentsContent"></div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div id="messages" class="section">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Send a Message to Your Coordinator</div>
+        </div>
+        <div id="msgSuccess" class="message-success">Message sent successfully!</div>
+        <form id="msgForm" class="message-form">
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" id="msgSubject" class="message-input short" placeholder="What is this about?" required>
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea id="msgText" class="message-input" placeholder="Type your message here..." required></textarea>
+          </div>
+          <button type="submit" class="btn-primary" id="msgBtn">Send Message</button>
+        </form>
+        <div id="msgHistory" class="message-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// API Base
+const API = '';
+
+// State
+let clientData = null;
+let selectedPetId = null;
+
+// Auth
+async function apiLogin(username, password) {
+  const res = await fetch(`${API}/api/client/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ username, password })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Login failed');
+  }
+  return res.json();
+}
+
+async function apiGetData() {
+  const res = await fetch(`${API}/api/client/data`, {
+    credentials: 'include'
+  });
+  if (!res.ok) throw new Error('Not logged in');
+  return res.json();
+}
+
+async function apiSendMessage(subject, message) {
+  const res = await fetch(`${API}/api/client/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ subject, message })
+  });
+  if (!res.ok) throw new Error('Failed to send');
+  return res.json();
+}
+
+// Login Form
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const username = document.getElementById('loginUsername').value;
+  const password = document.getElementById('loginPassword').value;
+
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+  document.getElementById('loginError').style.display = 'none';
+
+  try {
+    await apiLogin(username, password);
+    await loadApp();
+  } catch (err) {
+    document.getElementById('loginError').textContent = err.message;
+    document.getElementById('loginError').style.display = 'block';
+  } finally {
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+  }
+});
+
+// Logout
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  document.cookie = 'connect.sid=; Max-Age=0; path=/';
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginPage').style.display = 'flex';
+  clientData = null;
+});
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Load App
+async function loadApp() {
+  try {
+    clientData = await apiGetData();
+    renderApp();
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+  } catch (err) {
+    // Not logged in — stay on login page
+    clientData = null;
+  }
+}
+
+function renderApp() {
+  const c = clientData.client;
+  const initials = (c.full_name || c.username || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('welcomeAvatar').textContent = initials;
+  document.getElementById('welcomeName').textContent = `Hello, ${c.full_name || c.username}!`;
+  document.getElementById('welcomeEmail').textContent = c.email || '';
+
+  renderDashboard();
+  renderJourney();
+  renderQuotes();
+  renderDocuments();
+  renderMessages();
+}
+
+function renderDashboard() {
+  const pets = clientData.pets || [];
+  const services = clientData.services || [];
+
+  const petsEl = document.getElementById('dashboardPets');
+  if (pets.length === 0) {
+    petsEl.innerHTML = '<div class="alert">No pets registered yet. Contact your coordinator.</div>';
+  } else {
+    petsEl.innerHTML = pets.map(pet => `
+      <div class="pet-card ${pet.id === selectedPetId ? 'selected' : ''}" onclick="window._selectPet(${pet.id})">
+        <div class="pet-icon">${getPetEmoji(pet.pet_type)}</div>
+        <div class="pet-name">${pet.pet_name}</div>
+        <div class="pet-info">${[pet.pet_type, pet.breed].filter(Boolean).join(' • ')}</div>
+        ${pet.weight ? `<div class="pet-info">${pet.weight} kg</div>` : ''}
+        <span class="badge ${getStatusClass(pet.status)}" style="margin-top:8px;display:inline-block">${pet.status || 'Active'}</span>
+      </div>
+    `).join('');
+  }
+
+  const svcEl = document.getElementById('dashboardServices');
+  if (services.length === 0) {
+    svcEl.innerHTML = '<div class="card"><div class="alert">No active relocation services. Contact your coordinator.</div></div>';
+  } else {
+    svcEl.innerHTML = services.map(svc => `
+      <div class="card service-card">
+        <div class="card-header">
+          <div class="card-title">${svc.origin_city || '—'} → ${svc.dest_city || '—'}</div>
+          <span class="badge ${getStatusClass(svc.current_status)}">${svc.current_status || 'Pending'}</span>
+        </div>
+        <div class="service-meta">
+          <div class="service-meta-item">
+            <div class="service-meta-label">Pet</div>
+            <div style="font-weight:600">${getPetName(svc.pet_id, pets)}</div>
+          </div>
+          <div class="service-meta-item">
+            <div class="service-meta-label">Transport</div>
+            <div style="font-weight:600">${svc.transport_type || 'Air Cargo'}</div>
+          </div>
+          <div class="service-meta-item">
+            <div class="service-meta-label">Travel Date</div>
+            <div style="font-weight:600">${svc.travel_date || 'TBD'}</div>
+          </div>
+          <div class="service-meta-item">
+            <div class="service-meta-label">Status</div>
+            <div style="font-weight:600;text-transform:capitalize">${(svc.current_status || 'consultation').replace(/_/g, ' ')}</div>
+          </div>
+        </div>
+        ${svc.stages && svc.stages.length > 0 ? `
+          <div class="service-meta-label" style="margin-top:8px">Progress</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${calcProgress(svc.stages)}%"></div>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+}
+
+function renderJourney() {
+  const services = clientData.services || [];
+  const pets = clientData.pets || [];
+  const el = document.getElementById('journeyContent');
+
+  if (services.length === 0) {
+    el.innerHTML = '<div class="card"><div class="alert">No active journeys.</div></div>';
+    return;
+  }
+
+  const svc = services[0];
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${svc.origin_city || 'Origin'} → ${svc.dest_city || 'Destination'}</div>
+        <span class="badge ${getStatusClass(svc.current_status)}">${svc.current_status || 'Pending'}</span>
+      </div>
+      ${svc.stages && svc.stages.length > 0 ? `
+        <div style="margin-top:20px">
+          ${svc.stages.map((stage, i) => `
+            <div style="display:flex;gap:16px;margin-bottom:20px;position:relative">
+              <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;${stage.status === 'completed' ? 'background:#dcfce7;color:#16a34a;border:2px solid #16a34a' : stage.status === 'in-progress' ? 'background:#e0f2fe;color:#0284c7;border:2px solid #0284c7' : 'background:#f3f4f6;color:#6b7280;border:2px solid #d1d5db'}">
+                ${stage.status === 'completed' ? '✓' : stage.status === 'in-progress' ? '●' : (i + 1)}
+              </div>
+              <div style="flex:1;padding-bottom:20px;border-bottom:1px solid #e5e7eb;${i === svc.stages.length - 1 ? 'border-bottom:none' : ''}">
+                <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:${stage.status === 'completed' ? '#16a34a' : stage.status === 'in-progress' ? '#0284c7' : '#9ca3af'}">${stage.stage || 'Step ' + (i+1)}</div>
+                <div style="font-size:14px;font-weight:600;margin-top:2px">${stage.title || stage.description || '—'}</div>
+                ${stage.completed_date ? `<div style="font-size:12px;color:#6b7280;margin-top:2px">Completed: ${stage.completed_date}</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="alert" style="margin-top:16px">Journey stages not available yet. Please contact your coordinator.</div>'}
+    </div>
+  `;
+}
+
+function renderQuotes() {
+  const quotes = clientData.quotes || [];
+  const el = document.getElementById('quotesContent');
+
+  if (quotes.length === 0) {
+    el.innerHTML = '<div class="card"><div class="alert">No quotes generated yet. Contact your coordinator.</div></div>';
+    return;
+  }
+
+  el.innerHTML = quotes.map(q => {
+    const total = q.petQuotes ? q.petQuotes.reduce((sum, pq) => {
+      return sum + (pq.categories || []).reduce((cs, cat) => cs + (cat.items || []).reduce((is, item) => is + (item.price || 0), 0), 0);
+    }, 0) : 0;
+
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div style="font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Quote Reference</div>
+            <div style="font-size:18px;font-weight:700;margin-top:2px">${q.ref || 'N/A'}</div>
+          </div>
+          <span class="quote-status ${q.status === 'Approved' ? 'approved' : 'draft'}">${q.status || 'Draft'}</span>
+        </div>
+        ${total > 0 ? `
+          <div style="text-align:center;padding:24px 0;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;margin:16px 0">
+            <div class="quote-amount-label">Total Amount</div>
+            <div class="quote-amount">$${total.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+          </div>
+        ` : ''}
+        ${q.payment_status ? `
+          <div class="payment-details">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px">Payment Status</div>
+            <div class="payment-row">
+              <span class="payment-label">Status</span>
+              <span class="payment-value" style="text-transform:capitalize">${(q.payment_status || '').replace(/_/g, ' ')}</span>
+            </div>
+            ${q.payment_request_type ? `
+            <div class="payment-row">
+              <span class="payment-label">Payment Type</span>
+              <span class="payment-value" style="text-transform:capitalize">${q.payment_request_type}</span>
+            </div>
+            ` : ''}
+          </div>
+        ` : ''}
+        <div style="margin-top:16px;font-size:13px;color:#6b7280;text-align:center">
+          Contact your coordinator to make a payment or for questions.
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDocuments() {
+  const docs = clientData.documents || [];
+  const el = document.getElementById('documentsContent');
+
+  if (docs.length === 0) {
+    el.innerHTML = '<div class="card"><div class="alert">No documents uploaded yet. Your coordinator will add documents as they become available.</div></div>';
+    return;
+  }
+
+  const typeIcons = { vaccination: '💉', health: '🏥', export: '📄', import: '📋', passport: '🛂', microchip: '📡', other: '📎' };
+
+  el.innerHTML = `
+    <div class="card">
+      ${docs.map(doc => `
+        <div class="doc-item">
+          <div class="doc-icon">${typeIcons[doc.type] || '📎'}</div>
+          <div style="flex:1">
+            <div class="doc-name">${doc.name}</div>
+            <div class="doc-meta">${doc.type || 'Document'}${doc.expiry_date ? ' • Expires: ' + doc.expiry_date : ''}</div>
+          </div>
+          <span class="badge ${getStatusClass(doc.status)}">${doc.status || 'Valid'}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderMessages() {
+  const msgs = clientData.messages || [];
+  const el = document.getElementById('msgHistory');
+
+  if (msgs.length === 0) {
+    el.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:16px">No messages yet. Send a message to your coordinator.</div>';
+    return;
+  }
+
+  el.innerHTML = msgs.map(msg => `
+    <div class="message-item ${msg.sender}">
+      <div class="message-sender">${msg.sender === 'admin' ? 'Coordinator' : 'You'}</div>
+      ${msg.subject ? `<div style="font-weight:700;font-size:13px;margin-bottom:4px">${msg.subject}</div>` : ''}
+      <div class="message-text">${escapeHtml(msg.message)}</div>
+      <div class="message-time">${formatDate(msg.created_at)}</div>
+    </div>
+  `).join('');
+}
+
+// Message Form
+document.getElementById('msgForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('msgBtn');
+  const subject = document.getElementById('msgSubject').value;
+  const text = document.getElementById('msgText').value;
+
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+
+  try {
+    await apiSendMessage(subject, text);
+    document.getElementById('msgSuccess').style.display = 'block';
+    document.getElementById('msgSubject').value = '';
+    document.getElementById('msgText').value = '';
+    setTimeout(() => { document.getElementById('msgSuccess').style.display = 'none'; }, 4000);
+    const data = await apiGetData();
+    clientData.messages = data.messages;
+    renderMessages();
+  } catch (err) {
+    alert('Failed to send message: ' + err.message);
+  } finally {
+    btn.textContent = 'Send Message';
+    btn.disabled = false;
+  }
+});
+
+// Global helpers
+window._selectPet = function(id) {
+  selectedPetId = id;
+  renderDashboard();
+};
+
+function getPetEmoji(type) {
+  const map = { dog: '🐕', cat: '🐈', bird: '🐦', rabbit: '🐰', hamster: '🐹', fish: '🐟', other: '🐾' };
+  return map[(type || '').toLowerCase()] || '🐾';
+}
+
+function getStatusClass(status) {
+  if (!status) return 'badge-inactive';
+  const s = status.toLowerCase();
+  if (s === 'active' || s === 'completed' || s === 'approved' || s === 'fully_paid') return 'badge-active';
+  if (s === 'pending' || s === 'in-progress' || s === 'consultation' || s === 'draft' || s === 'deposit_paid') return 'badge-pending';
+  return 'badge-inactive';
+}
+
+function getPetName(petId, pets) {
+  const pet = pets.find(p => p.id === petId);
+  return pet ? pet.pet_name : 'Unknown Pet';
+}
+
+function calcProgress(stages) {
+  if (!stages || stages.length === 0) return 0;
+  const done = stages.filter(s => s.status === 'completed').length;
+  return Math.round((done / stages.length) * 100);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Try auto-login on load
+loadApp();
+</script>
+</body>
 </html>

@@ -74,6 +74,14 @@ function requireAdmin(req, res, next) {
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
+// Client session auth middleware
+function requireClient(req, res, next) {
+  if (req.session && req.session.clientId) {
+    return next();
+  }
+  return res.status(401).json({ error: 'Not logged in' });
+}
+
 // =============================================================================
 // CLIENT PORTAL (from original CRM React SPA)
 // Route: /client/* → static client SPA
@@ -636,6 +644,228 @@ app.all('/api/admin/:action', async (req, res) => {
   } catch (err) {
     console.error('Admin API error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// DATABASE SETUP ENDPOINT (run once to create all tables)
+// =============================================================================
+app.get('/api/setup', async (req, res) => {
+  try {
+    // Create all tables if they don't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(100) UNIQUE,
+        password VARCHAR(255),
+        full_name VARCHAR(100),
+        email VARCHAR(100),
+        phone VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS client_pets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT,
+        pet_name VARCHAR(100),
+        pet_type VARCHAR(100),
+        breed VARCHAR(100),
+        weight VARCHAR(50),
+        microchip VARCHAR(100),
+        photo_url TEXT,
+        status VARCHAR(50) DEFAULT 'Active',
+        status_color VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS client_services (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT,
+        pet_id INT,
+        origin_country VARCHAR(100),
+        origin_city VARCHAR(100),
+        dest_country VARCHAR(100),
+        dest_city VARCHAR(100),
+        transport_type VARCHAR(50),
+        travel_date VARCHAR(100),
+        current_status VARCHAR(50) DEFAULT 'consultation',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        FOREIGN KEY (pet_id) REFERENCES client_pets(id) ON DELETE SET NULL
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS service_sop (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        service_id INT,
+        stage VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'pending',
+        title VARCHAR(200),
+        description TEXT,
+        completed_date VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_id) REFERENCES client_services(id) ON DELETE CASCADE
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS client_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT,
+        sender VARCHAR(20),
+        subject VARCHAR(255),
+        message TEXT,
+        is_read INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS client_documents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT,
+        pet_id INT,
+        name VARCHAR(255),
+        type VARCHAR(100),
+        expiry_date VARCHAR(100),
+        status VARCHAR(50),
+        file_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS client_quotes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT,
+        ref VARCHAR(50),
+        route TEXT,
+        pet_quotes TEXT,
+        status VARCHAR(50) DEFAULT 'draft',
+        payment_status VARCHAR(50) DEFAULT 'unpaid',
+        payment_request_type VARCHAR(20) DEFAULT 'full',
+        payment_request_stage VARCHAR(20),
+        payment_record TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      )
+    `);
+    res.json({ success: true, message: 'All tables created successfully' });
+  } catch (err) {
+    console.error('Setup error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// CLIENT PORTAL API (public - for client SPA)
+// =============================================================================
+
+// POST /api/client/login - Client login (public - no auth required)
+app.post('/api/client/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const [rows] = await pool.execute(
+      'SELECT id, username, full_name, email, phone FROM clients WHERE username = ? AND password = ?',
+      [username, password]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const client = rows[0];
+    req.session.clientId = client.id;
+    res.json({ 
+      id: client.id, 
+      username: client.username, 
+      name: client.full_name, 
+      email: client.email,
+      phone: client.phone 
+    });
+  } catch (err) {
+    console.error('Client login error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/client/data - Get all client data (pets, services, quotes, docs, messages)
+app.get('/api/client/data', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+
+    const [[client], [pets], [services], [quotes], [docs], [messages]] = await Promise.all([
+      pool.execute('SELECT id, username, full_name, email, phone FROM clients WHERE id = ?', [clientId]),
+      pool.execute('SELECT * FROM client_pets WHERE client_id = ?', [clientId]),
+      pool.execute('SELECT * FROM client_services WHERE client_id = ?', [clientId]),
+      pool.execute('SELECT * FROM client_quotes WHERE client_id = ?', [clientId]),
+      pool.execute('SELECT * FROM client_documents WHERE client_id = ?', [clientId]),
+      pool.execute('SELECT * FROM client_messages WHERE client_id = ? ORDER BY created_at ASC', [clientId])
+    ]);
+
+    // Get SOP for each service
+    const servicesWithSOP = await Promise.all((services[0] || []).map(async (svc) => {
+      const [sop] = await pool.execute('SELECT * FROM service_sop WHERE service_id = ? ORDER BY id', [svc.id]);
+      return { ...svc, stages: sop };
+    }));
+
+    // Parse pet_quotes JSON
+    const quotesParsed = (quotes[0] || []).map(q => ({
+      ...q,
+      petQuotes: q.pet_quotes ? JSON.parse(q.pet_quotes) : []
+    }));
+
+    res.json({
+      client: client[0] || null,
+      pets: pets[0] || [],
+      services: servicesWithSOP,
+      quotes: quotesParsed,
+      documents: docs[0] || [],
+      messages: messages[0] || []
+    });
+  } catch (err) {
+    console.error('Client data error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/client/messages - Send message to admin
+app.post('/api/client/messages', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { subject, message } = req.body;
+    const [result] = await pool.execute(
+      'INSERT INTO client_messages (client_id, sender, subject, message) VALUES (?, ?, ?, ?)',
+      [clientId, 'client', subject, message]
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Message error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/client/payment-settings - Get payment settings
+app.get('/api/client/payment-settings', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const [rows] = await pool.execute(
+      'SELECT zelle_email, zelle_name, wechat_qr_url, alipay_qr_url FROM clients WHERE id = ?',
+      [clientId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const c = rows[0];
+    res.json({
+      zelleEmail: c.zelle_email || 'billing@petflyinc.com',
+      zelleName: c.zelle_name || 'Pet Fly Inc.',
+      wechatQrUrl: c.wechat_qr_url || '',
+      alipayQrUrl: c.alipay_qr_url || ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
