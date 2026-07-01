@@ -704,6 +704,15 @@ app.post('/api/migrate-from-supabase', async (req, res) => {
     // Wait for all ALTERs to complete before proceeding
     await new Promise(r => setTimeout(r, 2000));
 
+    // Wipe demo data seeded by /api/setup to avoid INSERT IGNORE collisions with Supabase IDs
+    await pool.query('DELETE FROM service_sop');
+    await pool.query('DELETE FROM client_pets');
+    await pool.query('DELETE FROM client_services');
+    await pool.query('DELETE FROM client_quotes');
+    await pool.query('DELETE FROM client_documents');
+    await pool.query('DELETE FROM client_messages');
+    await pool.query('DELETE FROM clients');
+
     const counts = { clients: 0, pets: 0, services: 0, sop: 0, quotes: 0, documents: 0 };
 
     // ========== MIGRATE CLIENTS ==========
