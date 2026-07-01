@@ -1,16 +1,26 @@
+// Try dotenv first, then fall back to config.json
 require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const mysql = require('mysql2/promise');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+// Fallback to config.json if env vars not set
+const config = (() => {
+  try {
+    return require('./config.json');
+  } catch { return null; }
+})();
+
+const dbConfig = {
+  host: process.env.DB_HOST || (config && config.db.host),
+  port: parseInt(process.env.DB_PORT) || (config && config.db.port) || 3306,
+  user: process.env.DB_USER || (config && config.db.user),
+  password: process.env.DB_PASSWORD || (config && config.db.password),
+  database: process.env.DB_NAME || (config && config.db.database),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-});
+};
+
+const pool = mysql.createPool(dbConfig);
 
 async function query(sql, params) {
   const [rows] = await pool.execute(sql, params);
