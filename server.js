@@ -75,6 +75,17 @@ function requireAdmin(req, res, next) {
 }
 
 // =============================================================================
+// CLIENT PORTAL (from original CRM React SPA)
+// Route: /client/* → static client SPA
+// =============================================================================
+app.use('/client', express.static(path.join(__dirname, 'public', 'client')));
+
+// GET /client → serve client SPA index.html
+app.get('/client', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'client', 'index.html'));
+});
+
+// =============================================================================
 // PUBLIC VIEW ROUTES
 // =============================================================================
 app.get('/', (req, res) => {
