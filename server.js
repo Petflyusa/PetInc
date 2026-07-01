@@ -834,6 +834,8 @@ app.get('/api/setup', async (req, res) => {
       )
     `);
 
+    await pool.query("ALTER TABLE clients ADD COLUMN IF NOT EXISTS address TEXT").catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS client_pets (
         id INT AUTO_INCREMENT PRIMARY KEY,
