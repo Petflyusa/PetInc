@@ -72,7 +72,7 @@ function showCountryTab(countryId) {
         if (data.import_permit === 'Required') {
             html += '<li><strong>Import Permit</strong> — Must obtain official permit before travel</li>';
         }
-        html += '<li><strong>Book Transport</strong> — Contact PetFly USA to arrange shipment</li>';
+        html += '<li><strong>Book Transport</strong> — Contact Pet Fly Inc to arrange shipment</li>';
         html += '<li><strong>Arrival</strong> — ' + (data.quarantine_days > 0 ? 'Quarantine required for ' + data.quarantine_days + ' days' : 'No quarantine required') + '</li>';
         html += '</ol>';
         html += '<p class="prep-note"><i class="fas fa-clock"></i> Recommended preparation: ' + (data.preparation_time || 'Contact us for timeline') + '</p>';
