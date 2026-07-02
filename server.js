@@ -75,6 +75,14 @@ async function sendEmail(to, subject, text) {
 // =============================================================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// =============================================================================
+// SUPABASE COMPATIBILITY PROXY — must be before express.static to intercept
+// =============================================================================
+app.all('/rest/v1/:table', (req, res) => { res.json([]); });
+app.all('/storage/v1/:path(*)', (req, res) => { res.json([]); });
+app.all('/auth/v1/:path(*)', (req, res) => { res.json({ data: { session: null, user: null }, error: null }); });
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
@@ -369,24 +377,13 @@ app.post('/api/files/get-url', (req, res) => {
   res.json({ publicUrl });
 });
 
-// =============================================================================
-// SUPABASE COMPATIBILITY PROXY — routes all Supabase REST/storage/auth
-// requests to our own handlers so the React SPA works without Supabase
-// =============================================================================
-
-// Proxy /rest/v1/* → return empty data arrays (data goes through /api/admin/*)
-app.all('/rest/v1/:table', (req, res) => {
-  res.json([]);
-});
-
-// Proxy /storage/v1/* → return empty (file uploads go to /api/files/*)
-app.all('/storage/v1/:path(*)', (req, res) => {
-  res.json([]);
-});
-
-// Proxy /auth/v1/* → return null session (auth handled by our /api/admin/login)
-app.all('/auth/v1/:path(*)', (req, res) => {
-  res.json({ data: { session: null, user: null }, error: null });
+// GET /api/files/list — list files in a bucket (query param: ?bucket=uploads)
+app.get('/api/files/list', (req, res) => {
+  const bucket = req.query.bucket || 'uploads';
+  const dir = path.join(UPLOAD_DIR, path.basename(bucket));
+  if (!fs.existsSync(dir)) return res.json([]);
+  const files = fs.readdirSync(dir).map(f => ({ name: f, url: `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(f)}` }));
+  res.json(files);
 });
 
 // =============================================================================
