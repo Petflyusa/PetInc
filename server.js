@@ -7,6 +7,7 @@ const mysql = require('mysql2/promise');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const { initializeDatabase } = require('./db');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
