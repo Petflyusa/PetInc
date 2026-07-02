@@ -8,6 +8,21 @@ const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const { initializeDatabase } = require('./db');
 const fs = require('fs');
+const multer = require('multer');
+const crypto = require('crypto');
+
+// File upload storage
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${crypto.randomUUID()}${ext}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -308,6 +323,70 @@ app.post('/api/broadcast', (req, res) => {
     console.error('Error broadcasting:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+// =============================================================================
+// FILE STORAGE API — local replacement for Supabase Storage
+// =============================================================================
+
+// GET /api/files/:bucket/:filename — serve uploaded files (public read)
+app.get('/api/files/:bucket/:filename', (req, res) => {
+  const { bucket, filename } = req.params;
+  const safeBucket = path.basename(bucket);
+  const filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
+// POST /api/files/upload — upload a file (returns public URL)
+app.post('/api/files/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file provided' });
+  const publicUrl = `/api/files/uploads/${req.file.filename}`;
+  res.json({ publicUrl, filename: req.file.filename, path: req.file.path });
+});
+
+// DELETE /api/files/:bucket/:filename — delete a file
+app.delete('/api/files/:bucket/:filename', (req, res) => {
+  const { bucket, filename } = req.params;
+  const safeBucket = path.basename(bucket);
+  const filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
+// POST /api/files/get-url — return a public URL for a given bucket+filename
+app.post('/api/files/get-url', (req, res) => {
+  const { bucket, filename } = req.body;
+  if (!bucket || !filename) return res.status(400).json({ error: 'Missing bucket or filename' });
+  const publicUrl = `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(filename)}`;
+  res.json({ publicUrl });
+});
+
+// =============================================================================
+// SUPABASE COMPATIBILITY PROXY — routes all Supabase REST/storage/auth
+// requests to our own handlers so the React SPA works without Supabase
+// =============================================================================
+
+// Proxy /rest/v1/* → return empty data arrays (data goes through /api/admin/*)
+app.all('/rest/v1/:table', (req, res) => {
+  res.json([]);
+});
+
+// Proxy /storage/v1/* → return empty (file uploads go to /api/files/*)
+app.all('/storage/v1/:path(*)', (req, res) => {
+  res.json([]);
+});
+
+// Proxy /auth/v1/* → return null session (auth handled by our /api/admin/login)
+app.all('/auth/v1/:path(*)', (req, res) => {
+  res.json({ data: { session: null, user: null }, error: null });
 });
 
 // =============================================================================
