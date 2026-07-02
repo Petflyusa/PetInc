@@ -211,6 +211,108 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+// GET /api/messages - Get all message threads (original React CRM)
+app.get('/api/messages', (req, res) => {
+  try {
+    const messagesFilePath = path.join(__dirname, 'messages.json');
+    if (fs.existsSync(messagesFilePath)) {
+      const fileData = fs.readFileSync(messagesFilePath, 'utf8');
+      res.json(JSON.parse(fileData));
+    } else {
+      res.json([]);
+    }
+  } catch (error) {
+    console.error('Error reading messages:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/messages - Send a message in a thread (original React CRM)
+app.post('/api/messages', (req, res) => {
+  try {
+    const { threadId, text, sender } = req.body;
+    if (!threadId || !text || !sender) {
+      return res.status(400).json({ error: 'Missing required fields: threadId, text, sender' });
+    }
+
+    const messagesFilePath = path.join(__dirname, 'messages.json');
+    let messagesData = [];
+
+    if (fs.existsSync(messagesFilePath)) {
+      const fileData = fs.readFileSync(messagesFilePath, 'utf8');
+      messagesData = JSON.parse(fileData);
+    }
+
+    let thread = messagesData.find(t => t.id === threadId);
+    if (!thread) {
+      thread = {
+        id: threadId,
+        clientName: threadId.charAt(0).toUpperCase() + threadId.slice(1) + ' Family',
+        route: 'Unknown Route',
+        ref: '#QL-' + Math.floor(10000 + Math.random() * 90000),
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100',
+        messages: []
+      };
+      messagesData.push(thread);
+    }
+
+    const newMessage = {
+      id: 'm' + Date.now(),
+      sender,
+      text,
+      timestamp: new Date().toISOString()
+    };
+
+    thread.messages.push(newMessage);
+
+    fs.writeFileSync(messagesFilePath, JSON.stringify(messagesData, null, 2), 'utf8');
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error('Error writing message:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST /api/broadcast - Broadcast message to all threads (original React CRM)
+app.post('/api/broadcast', (req, res) => {
+  try {
+    const { text, sender } = req.body;
+    if (!text || !sender) {
+      return res.status(400).json({ error: 'Missing text or sender' });
+    }
+
+    const messagesFilePath = path.join(__dirname, 'messages.json');
+    let messagesData = [];
+
+    if (fs.existsSync(messagesFilePath)) {
+      const fileData = fs.readFileSync(messagesFilePath, 'utf8');
+      messagesData = JSON.parse(fileData);
+    }
+
+    const newMessage = {
+      id: 'm' + Date.now(),
+      sender,
+      text,
+      timestamp: new Date().toISOString()
+    };
+
+    // Add to all threads
+    for (const thread of messagesData) {
+      thread.messages.push({ ...newMessage, id: 'm' + Date.now() + '_' + thread.id });
+    }
+
+    fs.writeFileSync(messagesFilePath, JSON.stringify(messagesData, null, 2), 'utf8');
+    res.status(201).json({ success: true, message: 'Broadcast sent' });
+  } catch (error) {
+    console.error('Error broadcasting:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// =============================================================================
+// ADMIN API ROUTES (Protected)
+// =============================================================================
+
 // GET /api/countries - Get all country regulations
 app.get('/api/countries', async (req, res) => {
   try {

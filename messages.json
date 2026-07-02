@@ -1,0 +1,83 @@
+[
+  {
+    "id": "smith",
+    "clientName": "Smith Family",
+    "route": "London to New York",
+    "ref": "#QL-29481",
+    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100",
+    "messages": [
+      {
+        "id": "m1",
+        "sender": "client",
+        "text": "Hello! Is Barnaby's rabies certificate approved yet?",
+        "timestamp": "2026-06-04T10:15:30Z"
+      },
+      {
+        "id": "m2",
+        "sender": "admin",
+        "text": "Hello! Yes, the Rabies Certificate for Barnaby is verified and valid. However, the Airline Acclimation Certificate is still missing. Could you please upload that?",
+        "timestamp": "2026-06-04T10:20:12Z"
+      },
+      {
+        "id": "m3",
+        "sender": "client",
+        "text": "Sure, I will upload the acclimation certificate tomorrow morning. Thanks for the quick response!",
+        "timestamp": "2026-06-04T11:45:00Z"
+      },
+      {
+        "id": "m1780634134283",
+        "sender": "admin",
+        "text": "Yes, we received your certificate, thanks!",
+        "timestamp": "2026-06-05T04:35:34.283Z"
+      },
+      {
+        "id": "m1780634382750",
+        "sender": "admin",
+        "text": "test",
+        "timestamp": "2026-06-05T04:39:42.750Z"
+      }
+    ]
+  },
+  {
+    "id": "luo",
+    "clientName": "Luo Xiaoming",
+    "route": "Los Angeles to Shanghai",
+    "ref": "#QL-29482",
+    "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100",
+    "messages": [
+      {
+        "id": "m4",
+        "sender": "client",
+        "text": "Hi, I just submitted the contract. Do we need additional customs forms for entry into China?",
+        "timestamp": "2026-06-05T08:30:00Z"
+      },
+      {
+        "id": "m5",
+        "sender": "admin",
+        "text": "Welcome Xiaoming! Yes, China requires a specific quarantine entry registration form. I will prepare the draft and post it here shortly.",
+        "timestamp": "2026-06-05T08:45:00Z"
+      }
+    ]
+  },
+  {
+    "id": "jiang",
+    "clientName": "Jiang Shimin",
+    "route": "Tokyo to Sydney",
+    "ref": "#QL-29483",
+    "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100",
+    "messages": [
+      {
+        "id": "m6",
+        "sender": "client",
+        "text": "Are there any travel restrictions for flat-faced breeds like pugs for Sydney flights?",
+        "timestamp": "2026-06-03T14:10:00Z"
+      },
+      {
+        "id": "m7",
+        "sender": "admin",
+        "text": "Hello Shimin. Yes, flat-faced breeds (brachycephalic) have strict temperature and airline restrictions. We are planning a routing with specialized climate-controlled animal transport.",
+        "timestamp": "2026-06-03T15:20:00Z"
+      }
+    ]
+  }
+]
