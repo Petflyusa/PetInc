@@ -2045,6 +2045,14 @@ app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
 });
 
 // =============================================================================
+// CLIENTS SPA STATIC FILES (CRM for managing all clients — not the client portal)
+// =============================================================================
+app.use('/clients', express.static(path.join(__dirname, 'public', 'clients')));
+app.get('/clients', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'clients', 'index.html'));
+});
+
+// =============================================================================
 // ADMIN SPA STATIC FILES
 // =============================================================================
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));

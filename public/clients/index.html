@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pet Fly Inc - Client CRM</title>
+    <script>
+    // =============================================================================
+    // SUPABASE STORAGE POLYFILL — routes all file operations to local server
+    // Replaces dead Supabase Storage (tfsacppyasdrexjrsjev.supabase.co)
+    // =============================================================================
+
+    // Fake the Supabase anon key so the client doesn't reject our mock server
+    window.__SUPABASE_POLYFILL_URL__ = '/api';
+
+    // Intercept fetch to route storage API calls to our local endpoints
+    const _originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      const urlStr = typeof url === 'string' ? url : url.toString();
+
+      // Route Supabase Storage uploads to our local upload endpoint
+      if (urlStr.includes('supabase.co/storage/v1/object')) {
+        const filename = crypto.randomUUID();
+        // multipart/form-data upload — forward as FormData to /api/files/upload
+        const formData = options && options.body;
+        if (formData && typeof formData.append === 'function') {
+          // Re-package and send to local upload endpoint
+          const localForm = new FormData();
+          for (const [key, val] of formData) {
+            if (key !== 'cacheControl') localForm.append(key, val);
+          }
+          // Determine bucket from the URL
+          const bucketMatch = urlStr.match(/\/storage\/v1\/object\/(?:upload|public)\/([^\/]+)/);
+          const bucket = bucketMatch ? bucketMatch[1] : 'uploads';
+
+          return _originalFetch('/api/files/upload', {
+            method: 'POST',
+            body: localForm
+          }).then(res => res.json()).then(data => {
+            // Return a mock Supabase storage response with the local URL
+            const localUrl = `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(data.filename)}`;
+            return new Response(JSON.stringify({
+              data: {
+                Key: `${bucket}/${data.filename}`,
+                url: localUrl,
+                publicUrl: localUrl
+              },
+              error: null
+            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          });
+        }
+      }
+
+      return _originalFetch(url, options);
+    };
+
+    // Intercept XMLHttpRequest for upload operations (Supabase JS uses xhr for upload progress)
+    (function() {
+      const _originalXHROpen = XMLHttpRequest.prototype.open;
+      const _originalXHRSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+        this.__supabaseUrl = typeof url === 'string' && url.includes('supabase.co/storage/v1/object') ? url : this.__supabaseUrl;
+        return _originalXHROpen.call(this, method, url, ...rest);
+      };
+      XMLHttpRequest.prototype.send = function(data, ...rest) {
+        if (this.__supabaseUrl && this.__supabaseUrl.includes('supabase.co/storage/v1/object')) {
+          const bucketMatch = this.__supabaseUrl.match(/\/storage\/v1\/object\/(?:upload|public)\/([^\/]+)/);
+          const bucket = bucketMatch ? bucketMatch[1] : 'uploads';
+          const filename = crypto.randomUUID();
+          const localForm = new FormData();
+          if (data && typeof data === 'string') {
+            // Parse multipart form data boundary
+            const boundary = data.split('\r\n')[0];
+            // Extract file data — pass through as-is for now
+          }
+          // Use fetch-based upload as polyfill
+          const self = this;
+          fetch('/api/files/upload', { method: 'POST', body: data }).then(r => r.json()).then(result => {
+            const localUrl = `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(result.filename)}`;
+            self.dispatchEvent(new Event('load'));
+            self.status = 200;
+            self.responseText = JSON.stringify({ data: { url: localUrl, publicUrl: localUrl }, error: null });
+          }).catch(err => {
+            self.dispatchEvent(new Event('error'));
+          });
+          return;
+        }
+        return _originalXHRSend.call(this, data, ...rest);
+      };
+    })();
+
+    // Make Supabase client think our local server is the real Supabase
+    // by overriding the URL it uses for REST calls
+    window.__supabaseUrlOverride__ = '/api';
+    </script>
+    <script type="module" crossorigin src="/clients/assets/index-CVJoSUgX.js"></script>
+    <link rel="stylesheet" crossorigin href="/clients/assets/index-Bg0OLj0Q.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="/message-widget.js" defer></script>
+  </body>
+</html>
