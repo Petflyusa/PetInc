@@ -1,103 +1,593 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pet Fly Inc - Admin Portal</title>
-    <script>
-    // =============================================================================
-    // SUPABASE STORAGE POLYFILL — routes all file operations to local server
-    // Replaces dead Supabase Storage (tfsacppyasdrexjrsjev.supabase.co)
-    // =============================================================================
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Fly Inc - Admin CMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    // Fake the Supabase anon key so the client doesn't reject our mock server
-    window.__SUPABASE_POLYFILL_URL__ = '/api';
+    :root {
+      --bg: #fafaf8;
+      --surface: #ffffff;
+      --border: #e5e0d8;
+      --text: #1a1a1a;
+      --muted: #777;
+      --accent: #c17f3c;
+      --accent-hover: #a66b2e;
+      --danger: #c0392b;
+      --sidebar-w: 220px;
+    }
 
-    // Intercept fetch to route storage API calls to our local endpoints
-    const _originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-      const urlStr = typeof url === 'string' ? url : url.toString();
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-      // Route Supabase Storage uploads to our local upload endpoint
-      if (urlStr.includes('supabase.co/storage/v1/object')) {
-        const filename = crypto.randomUUID();
-        // multipart/form-data upload — forward as FormData to /api/files/upload
-        const formData = options && options.body;
-        if (formData && typeof formData.append === 'function') {
-          // Re-package and send to local upload endpoint
-          const localForm = new FormData();
-          for (const [key, val] of formData) {
-            if (key !== 'cacheControl') localForm.append(key, val);
-          }
-          // Determine bucket from the URL
-          const bucketMatch = urlStr.match(/\/storage\/v1\/object\/(?:upload|public)\/([^\/]+)/);
-          const bucket = bucketMatch ? bucketMatch[1] : 'uploads';
+    /* LOGIN */
+    .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 40px; width: 360px; }
+    .login-box h1 { font-family: 'Playfair Display', serif; font-size: 1.5rem; margin-bottom: 8px; }
+    .login-box p { color: var(--muted); font-size: 0.875rem; margin-bottom: 28px; }
+    .login-box .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .login-box .brand-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1rem; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 6px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit; font-size: 0.875rem; background: var(--bg); }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 6px; font-family: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; transition: background 0.15s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg); }
+    .login-error { color: var(--danger); font-size: 0.8125rem; margin-bottom: 12px; display: none; }
 
-          return _originalFetch('/api/files/upload', {
-            method: 'POST',
-            body: localForm
-          }).then(res => res.json()).then(data => {
-            // Return a mock Supabase storage response with the local URL
-            const localUrl = `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(data.filename)}`;
-            return new Response(JSON.stringify({
-              data: {
-                Key: `${bucket}/${data.filename}`,
-                url: localUrl,
-                publicUrl: localUrl
-              },
-              error: null
-            }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          });
-        }
-      }
+    /* APP SHELL */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 100; }
+    .sidebar-brand { padding: 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .sidebar-brand-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 0.875rem; flex-shrink: 0; }
+    .sidebar-brand-text { font-family: 'Playfair Display', serif; font-size: 0.9375rem; }
+    .sidebar-brand-sub { font-size: 0.6875rem; color: var(--muted); }
+    .sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+    .sidebar-section-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 12px 8px 6px; font-weight: 600; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; font-size: 0.875rem; cursor: pointer; transition: background 0.1s; color: var(--text); border: none; background: none; width: 100%; text-align: left; }
+    .nav-item:hover { background: var(--bg); }
+    .nav-item.active { background: #f0e8d8; color: var(--accent); font-weight: 500; }
+    .nav-item i { width: 16px; text-align: center; opacity: 0.7; }
+    .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
+    .sidebar-footer .nav-item { color: var(--muted); font-size: 0.8125rem; }
 
-      return _originalFetch(url, options);
-    };
+    .main { flex: 1; margin-left: var(--sidebar-w); padding: 32px 40px; max-width: 900px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h2 { font-family: 'Playfair Display', serif; font-size: 1.625rem; margin-bottom: 4px; }
+    .page-header p { color: var(--muted); font-size: 0.875rem; }
 
-    // Intercept XMLHttpRequest for upload operations (Supabase JS uses xhr for upload progress)
-    (function() {
-      const _originalXHROpen = XMLHttpRequest.prototype.open;
-      const _originalXHRSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-        this.__supabaseUrl = typeof url === 'string' && url.includes('supabase.co/storage/v1/object') ? url : this.__supabaseUrl;
-        return _originalXHROpen.call(this, method, url, ...rest);
-      };
-      XMLHttpRequest.prototype.send = function(data, ...rest) {
-        if (this.__supabaseUrl && this.__supabaseUrl.includes('supabase.co/storage/v1/object')) {
-          const bucketMatch = this.__supabaseUrl.match(/\/storage\/v1\/object\/(?:upload|public)\/([^\/]+)/);
-          const bucket = bucketMatch ? bucketMatch[1] : 'uploads';
-          const filename = crypto.randomUUID();
-          const localForm = new FormData();
-          if (data && typeof data === 'string') {
-            // Parse multipart form data boundary
-            const boundary = data.split('\r\n')[0];
-            // Extract file data — pass through as-is for now
-          }
-          // Use fetch-based upload as polyfill
-          const self = this;
-          fetch('/api/files/upload', { method: 'POST', body: data }).then(r => r.json()).then(result => {
-            const localUrl = `/api/files/${encodeURIComponent(bucket)}/${encodeURIComponent(result.filename)}`;
-            self.dispatchEvent(new Event('load'));
-            self.status = 200;
-            self.responseText = JSON.stringify({ data: { url: localUrl, publicUrl: localUrl }, error: null });
-          }).catch(err => {
-            self.dispatchEvent(new Event('error'));
-          });
-          return;
-        }
-        return _originalXHRSend.call(this, data, ...rest);
-      };
-    })();
+    /* SECTION EDITOR */
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+    .section-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .form-row { display: grid; gap: 16px; }
+    .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .save-bar { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); margin-top: 8px; }
+    .save-status { font-size: 0.8125rem; color: var(--muted); }
+    .save-status.ok { color: #27ae60; }
+    textarea { resize: vertical; min-height: 80px; }
 
-    // Make Supabase client think our local server is the real Supabase
-    // by overriding the URL it uses for REST calls
-    window.__supabaseUrlOverride__ = '/api';
-    </script>
-    <script type="module" crossorigin src="/admin/assets/index-CVJoSUgX.js"></script>
-    <link rel="stylesheet" crossorigin href="/admin/assets/index-Bg0OLj0Q.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script src="/message-widget.js" defer></script>
-  </body>
+    /* STATS TABLE */
+    .stats-table { width: 100%; border-collapse: collapse; }
+    .stats-table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .stats-table td { padding: 8px 8px 8px 0; }
+    .stats-table input { width: 100%; }
+
+    /* SERVICE CARDS */
+    .service-card { border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+    .service-card h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 10px; color: var(--muted); }
+    .service-card .form-row { margin-bottom: 10px; }
+    .icon-select { display: flex; gap: 8px; align-items: center; }
+    .icon-select select { flex: 1; }
+
+    /* OFFICE ROWS */
+    .office-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .office-row:last-child { border-bottom: none; }
+    .office-row input { width: 100%; }
+
+    /* QUOTE REQUESTS */
+    .quote-list { display: flex; flex-direction: column; gap: 12px; }
+    .quote-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+    .quote-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+    .quote-item-name { font-weight: 600; font-size: 0.9375rem; }
+    .quote-item-email { font-size: 0.8125rem; color: var(--muted); }
+    .quote-item-meta { display: flex; gap: 16px; font-size: 0.8125rem; color: var(--muted); flex-wrap: wrap; }
+    .quote-item-meta span { display: flex; align-items: center; gap: 4px; }
+    .quote-item-status { font-size: 0.75rem; padding: 2px 8px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; font-weight: 500; }
+    .quote-item-status.pending { background: #fff8e1; color: #f57f17; }
+    .quote-item-notes { margin-top: 8px; font-size: 0.8125rem; color: var(--text); background: var(--bg); padding: 8px 12px; border-radius: 4px; }
+
+    .tab-nav { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+    .tab-btn { padding: 8px 20px; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s; }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:hover { color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .msg { padding: 10px 14px; border-radius: 6px; font-size: 0.875rem; margin-bottom: 16px; }
+    .msg-success { background: #e8f5e9; color: #2e7d32; }
+    .msg-error { background: #fdecea; color: var(--danger); }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px; }
+      .form-row.cols-2, .form-row.cols-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const $ = el => document.querySelector(el);
+const $$ = el => document.querySelectorAll(el);
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let admin = null;
+let activeSection = 'hero';
+let landingData = {};
+let quoteRequests = [];
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+const api = {
+  async call(path, opts = {}) {
+    const res = await fetch(path, {
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      ...opts,
+      body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body
+    });
+    if (res.status === 401 || res.status === 302) { admin = null; render(); return null; }
+    return res.json();
+  },
+  get: (path) => api.call(path),
+  put: (path, body) => api.call(path, { method: 'PUT', body }),
+  post: (path, body) => api.call(path, { method: 'POST', body }),
+  del: (path) => api.call(path, { method: 'DELETE' }),
+};
+
+// ─── ICONS ───────────────────────────────────────────────────────────────────
+const ICONS = [
+  'fa-plane-departure','fa-file-contract','fa-shield-alt','fa-headset',
+  'fa-home','fa-paw','fa-heart','fa-truck','fa-plane','fa-globe','fa-users',
+  'fa-star','fa-check','fa-phone','fa-envelope','fa-map-marker-alt'
+];
+
+// ─── SECTIONS ─────────────────────────────────────────────────────────────────
+const SECTIONS = [
+  { id: 'hero', label: 'Hero' },
+  { id: 'stats', label: 'Stats' },
+  { id: 'services', label: 'Services' },
+  { id: 'about', label: 'About' },
+  { id: 'offices', label: 'Offices' },
+  { id: 'footer_c', label: 'Footer' },
+  { id: 'cta', label: 'CTA' },
+  { id: 'quotes', label: 'Quote Requests', icon: 'fa-inbox' },
+];
+
+// ─── LOGIN ───────────────────────────────────────────────────────────────────
+async function login(username, password) {
+  const res = await fetch('/admin/login', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  if (res.redirected || res.status === 302 || res.status === 200) {
+    admin = { username };
+    render();
+    return true;
+  }
+  const data = await res.json().catch(() => ({}));
+  return data.success !== false;
+}
+
+// ─── LOAD DATA ───────────────────────────────────────────────────────────────
+async function loadLanding() {
+  landingData = await api.get('/api/landing') || {};
+}
+
+async function loadQuotes() {
+  const data = await api.get('/api/admin/list_quotes');
+  if (data) quoteRequests = data;
+}
+
+// ─── SAVE ─────────────────────────────────────────────────────────────────────
+async function saveSection(section) {
+  const btn = $('#save-btn');
+  const status = $('#save-status');
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+  try {
+    await api.put(`/api/admin/landing/${section}`, landingData[section]);
+    status.textContent = 'Saved!';
+    status.classList.add('ok');
+    setTimeout(() => { status.textContent = ''; status.classList.remove('ok'); }, 2000);
+  } catch(e) {
+    status.textContent = 'Error saving';
+  }
+  btn.disabled = false;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderLogin() {
+  $('#app').innerHTML = `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="brand">
+          <div class="brand-icon"><i class="fas fa-plane"></i></div>
+          <div>
+            <div class="brand-icon" style="font-size:0.75rem;font-weight:600;">PetFly</div>
+            <div class="brand-icon" style="font-size:0.6875rem;color:var(--muted);background:none;font-weight:400;">Admin CMS</div>
+          </div>
+        </div>
+        <h1>Welcome back</h1>
+        <p>Sign in to manage landing page content</p>
+        <div class="login-error" id="login-error">Invalid username or password</div>
+        <form onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="username" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Sign In</button>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  const u = $('#username').value, p = $('#password').value;
+  login(u, p).then(ok => {
+    if (!ok) { $('#login-error').style.display = 'block'; }
+  });
+}
+
+function renderApp() {
+  const navItems = SECTIONS.map(s => `
+    <button class="nav-item${activeSection === s.id ? ' active' : ''}" onclick="switchSection('${s.id}')">
+      <i class="fas ${s.icon || 'fa-edit'}"></i>
+      ${s.label}
+    </button>
+  `).join('');
+
+  $('#app').innerHTML = `
+    <div class="app">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-icon"><i class="fas fa-plane"></i></div>
+          <div>
+            <div class="sidebar-brand-text">PetFly Admin</div>
+            <div class="sidebar-brand-sub">Landing Page CMS</div>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="sidebar-section-label">Landing Page</div>
+          ${navItems}
+        </nav>
+        <div class="sidebar-footer">
+          <button class="nav-item" onclick="location.href='/admin/logout'" style="width:100%">
+            <i class="fas fa-sign-out-alt"></i> Sign Out
+          </button>
+        </div>
+      </aside>
+      <main class="main">
+        <div id="section-content"></div>
+      </main>
+    </div>
+  `;
+  renderSection();
+}
+
+function switchSection(id) {
+  activeSection = id;
+  $$('.nav-item').forEach(el => el.classList.remove('active'));
+  const idx = SECTIONS.findIndex(s => s.id === id);
+  $$('.nav-item')[idx]?.classList.add('active');
+  renderSection();
+}
+
+function renderSection() {
+  const content = $('#section-content');
+  if (activeSection === 'quotes') {
+    renderQuotes(content);
+    return;
+  }
+  const data = landingData[activeSection] || getDefault(activeSection);
+  content.innerHTML = `
+    <div class="page-header">
+      <h2>${SECTIONS.find(s=>s.id===activeSection)?.label || activeSection}</h2>
+      <p>Edit this section of the landing page</p>
+    </div>
+    <div class="section-card">
+      ${renderSectionForm(activeSection, data)}
+    </div>
+    <div class="save-bar">
+      <span class="save-status" id="save-status"></span>
+      <button class="btn btn-primary" id="save-btn" onclick="saveSection('${activeSection}')">
+        <i class="fas fa-save"></i> Save Changes
+      </button>
+    </div>
+  `;
+  bindSectionInputs(activeSection);
+}
+
+function renderQuotes(el) {
+  el.innerHTML = `
+    <div class="page-header">
+      <h2>Quote Requests</h2>
+      <p>Quote requests submitted from the landing page</p>
+    </div>
+    <div id="quotes-msg"></div>
+    <div class="quote-list" id="quotes-list"></div>
+  `;
+  loadQuotes().then(() => {
+    if (!quoteRequests.length) {
+      $('#quotes-list').innerHTML = '<p style="color:var(--muted);font-size:0.875rem;">No quote requests yet.</p>';
+      return;
+    }
+    $('#quotes-list').innerHTML = quoteRequests.map(q => `
+      <div class="quote-item">
+        <div class="quote-item-header">
+          <div>
+            <div class="quote-item-name">${q.pet_name || '—'} <span style="font-weight:400;color:var(--muted);font-size:0.8125rem;">(${q.pet_type || 'pet'})</span></div>
+            <div class="quote-item-email">${q.email || ''} · ${q.phone || ''}</div>
+          </div>
+          <span class="quote-item-status ${(q.status||'pending').toLowerCase()}">${q.status || 'pending'}</span>
+        </div>
+        <div class="quote-item-meta">
+          <span><i class="fas fa-plane-departure"></i> ${q.origin_city || ''}, ${q.origin_country || ''}</span>
+          <span><i class="fas fa-plane-arrival"></i> ${q.dest_city || ''}, ${q.dest_country || ''}</span>
+          <span><i class="fas fa-calendar"></i> ${q.travel_date || 'TBD'}</span>
+          <span><i class="fas fa-truck"></i> ${q.transport_type || ''}</span>
+          <span><i class="fas fa-weight"></i> ${q.pet_weight || '?'} kg</span>
+          ${q.referral ? `<span><i class="fas fa-user"></i> ${q.referral}</span>` : ''}
+        </div>
+        ${q.notes ? `<div class="quote-item-notes">${q.notes}</div>` : ''}
+      </div>
+    `).join('');
+  });
+}
+
+function getDefault(section) {
+  const defaults = {
+    hero: { eyebrow: 'International Pet Transport', headline: 'Where Every\nJourney\nCounts.', subheading: 'Safe passage for your most precious companions — to 15+ countries, with IATA & USDA certified care at every mile.', cta_text: 'Request a Quote' },
+    stats: [{number:'8+',label:'Years Experience'},{number:'15+',label:'Countries Served'},{number:'3',label:'Global Offices'},{number:'IATA',label:'Certified'}],
+    services: [{icon:'fa-plane-departure',title:'International Transport',desc:'Door-to-door pet relocation across 15+ countries. Complete documentation, customs clearance, and IATA-compliant containers handled for you.'},{icon:'fa-file-contract',title:'Documentation',desc:'Health certificates, import permits, microchipping records — every piece of paperwork reviewed and processed by our expert team.'},{icon:'fa-shield-alt',title:'USDA & IATA Compliance',desc:'Fully compliant with international airline regulations. Your pet travels in approved containers with full regulatory approval at every checkpoint.'},{icon:'fa-headset',title:'Dedicated Support',desc:'A single point of contact throughout the entire journey. Real-time updates, veterinary guidance, and 24/7 emergency availability.'}],
+    about: { text: "We don't just transport pets.\nWe shepherd them safely across oceans and continents — with precision, care, and unwavering attention." },
+    offices: [{city:'Los Angeles',country:'California, USA',type:'Headquarters'},{city:'Shanghai',country:'China',type:''},{city:'Beijing',country:'China',type:''}],
+    footer_c: { email: 'info@petflyinc.com', phone: '+1 (555) 123-4567', hours: 'Mon—Fri: 9AM — 6PM PST' },
+    cta: { headline: "Ready to begin your pet's journey?", sub: "Request a quote and we'll respond within 24 hours.", button_text: 'Request a Quote' },
+  };
+  return defaults[section] || {};
+}
+
+function renderSectionForm(section, data) {
+  switch (section) {
+    case 'hero': return `
+      <h3><i class="fas fa-image"></i> Hero Section</h3>
+      <div class="form-group">
+        <label>Eyebrow text</label>
+        <input type="text" id="f-hero-eyebrow" value="${esc(data.eyebrow||'')}">
+      </div>
+      <div class="form-group">
+        <label>Headline (use Enter for line breaks)</label>
+        <textarea id="f-hero-headline" rows="3">${esc((data.headline||'').replace(/<br>/g,'\n'))}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Subheading</label>
+        <textarea id="f-hero-subheading" rows="3">${esc(data.subheading||'')}</textarea>
+      </div>
+      <div class="form-group">
+        <label>CTA Button Text</label>
+        <input type="text" id="f-hero-cta_text" value="${esc(data.cta_text||'')}">
+      </div>
+    `;
+    case 'stats': return `
+      <h3><i class="fas fa-chart-bar"></i> Stats Bar (4 items)</h3>
+      <table class="stats-table">
+        <thead><tr><th>Number</th><th>Label</th></tr></thead>
+        <tbody>
+          ${(data.length ? data : getDefault('stats')).map((s,i) => `
+            <tr>
+              <td><input type="text" id="f-stats-${i}-number" value="${esc(s.number||'')}"></td>
+              <td><input type="text" id="f-stats-${i}-label" value="${esc(s.label||'')}"></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    `;
+    case 'services': return `
+      <h3><i class="fas fa-th-large"></i> Services (4 cards)</h3>
+      ${(data.length ? data : getDefault('services')).map((svc, i) => `
+        <div class="service-card">
+          <h4>Service ${i+1}</h4>
+          <div class="form-row cols-2">
+            <div class="form-group">
+              <label>Icon</label>
+              <div class="icon-select">
+                <i class="fas ${svc.icon||'fa-plane'}" id="f-svc-${i}-icon-preview" style="width:20px;"></i>
+                <select id="f-svc-${i}-icon" onchange="document.getElementById('f-svc-${i}-icon-preview').className='fas '+this.value">
+                  ${ICONS.map(ic => `<option value="${ic}"${svc.icon===ic?' selected':''}>${ic}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text" id="f-svc-${i}-title" value="${esc(svc.title||'')}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="f-svc-${i}-desc" rows="3">${esc(svc.desc||'')}</textarea>
+          </div>
+        </div>`).join('')}
+    `;
+    case 'about': return `
+      <h3><i class="fas fa-info-circle"></i> About Section</h3>
+      <div class="form-group">
+        <label>About Text (supports line breaks)</label>
+        <textarea id="f-about-text" rows="4" style="font-size:1rem;line-height:1.6;">${esc((data.text||'').replace(/<br>/g,'\n'))}</textarea>
+      </div>
+    `;
+    case 'offices': return `
+      <h3><i class="fas fa-building"></i> Global Offices</h3>
+      <div class="office-row" style="font-weight:600;font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding-bottom:8px;">
+        <div>City</div><div>Country</div><div>Type/Note</div><div></div>
+      </div>
+      ${(data.length ? data : getDefault('offices')).map((o, i) => `
+        <div class="office-row">
+          <div><input type="text" id="f-offices-${i}-city" value="${esc(o.city||'')}" placeholder="City"></div>
+          <div><input type="text" id="f-offices-${i}-country" value="${esc(o.country||'')}" placeholder="Country"></div>
+          <div><input type="text" id="f-offices-${i}-type" value="${esc(o.type||'')}" placeholder="e.g. Headquarters"></div>
+          <div></div>
+        </div>`).join('')}
+      <button class="btn btn-secondary" style="margin-top:12px;" onclick="addOffice()"><i class="fas fa-plus"></i> Add Office</button>
+    `;
+    case 'footer_c': return `
+      <h3><i class="fas fa-shoe-prints"></i> Footer Contact Info</h3>
+      <div class="form-row cols-2">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="f-footer_c-email" value="${esc(data.email||'')}">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="f-footer_c-phone" value="${esc(data.phone||'')}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Business Hours</label>
+        <input type="text" id="f-footer_c-hours" value="${esc(data.hours||'')}">
+      </div>
+    `;
+    case 'cta': return `
+      <h3><i class="fas fa-bullhorn"></i> Call to Action Section</h3>
+      <div class="form-group">
+        <label>Headline</label>
+        <input type="text" id="f-cta-headline" value="${esc(data.headline||'')}">
+      </div>
+      <div class="form-group">
+        <label>Sub text</label>
+        <input type="text" id="f-cta-sub" value="${esc(data.sub||'')}">
+      </div>
+      <div class="form-group">
+        <label>Button Text</label>
+        <input type="text" id="f-cta-button_text" value="${esc(data.button_text||'')}">
+      </div>
+    `;
+    default: return '<p>Section not found.</p>';
+  }
+}
+
+function bindSectionInputs(section) {
+  // Hero
+  if (section === 'hero') {
+    [['f-hero-eyebrow','eyebrow'],['f-hero-headline','headline'],['f-hero-subheading','subheading'],['f-hero-cta_text','cta_text']].forEach(([id, key]) => {
+      $(`#${id}`)?.addEventListener('input', e => { landingData.hero[key] = e.target.value; });
+    });
+  }
+  // Stats
+  if (section === 'stats') {
+    const arr = landingData.stats || [];
+    for (let i = 0; i < 4; i++) {
+      const s = arr[i] || {};
+      [`f-stats-${i}-number`, `f-stats-${i}-label`].forEach((id, j) => {
+        $(`#${id}`)?.addEventListener('input', e => {
+          if (!landingData.stats[i]) landingData.stats[i] = {};
+          landingData.stats[i][j === 0 ? 'number' : 'label'] = e.target.value;
+        });
+      });
+    }
+  }
+  // Services
+  if (section === 'services') {
+    const arr = landingData.services || [];
+    for (let i = 0; i < arr.length; i++) {
+      ['icon','title','desc'].forEach(key => {
+        $(`#f-svc-${i}-${key}`)?.addEventListener('input', e => {
+          landingData.services[i][key] = e.target.value;
+          if (key === 'icon') document.getElementById(`f-svc-${i}-icon-preview`).className = `fas ${e.target.value}`;
+        });
+      });
+    }
+  }
+  // About
+  if (section === 'about') {
+    $('#f-about-text')?.addEventListener('input', e => { landingData.about.text = e.target.value; });
+  }
+  // Offices
+  if (section === 'offices') {
+    const arr = landingData.offices || [];
+    for (let i = 0; i < arr.length; i++) {
+      ['city','country','type'].forEach(key => {
+        $(`#f-offices-${i}-${key}`)?.addEventListener('input', e => {
+          if (!landingData.offices[i]) landingData.offices[i] = {};
+          landingData.offices[i][key] = e.target.value;
+        });
+      });
+    }
+  }
+  // Footer
+  if (section === 'footer_c') {
+    ['email','phone','hours'].forEach(key => {
+      $(`#f-footer_c-${key}`)?.addEventListener('input', e => {
+        if (!landingData.footer_c) landingData.footer_c = {};
+        landingData.footer_c[key] = e.target.value;
+      });
+    });
+  }
+  // CTA
+  if (section === 'cta') {
+    ['headline','sub','button_text'].forEach(key => {
+      $(`#f-cta-${key}`)?.addEventListener('input', e => {
+        if (!landingData.cta) landingData.cta = {};
+        landingData.cta[key] = e.target.value;
+      });
+    });
+  }
+}
+
+function addOffice() {
+  if (!landingData.offices) landingData.offices = [...getDefault('offices')];
+  landingData.offices.push({ city: '', country: '', type: '' });
+  renderSection();
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  // Check if admin is logged in
+  const me = await api.get('/admin/me');
+  if (me) {
+    admin = me;
+    await loadLanding();
+  }
+  render();
+}
+
+// Make functions global for inline handlers
+window.handleLogin = handleLogin;
+window.switchSection = switchSection;
+window.saveSection = saveSection;
+window.addOffice = addOffice;
+
+init();
+</script>
+</body>
 </html>

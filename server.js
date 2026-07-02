@@ -133,8 +133,18 @@ app.get('/client', (req, res) => {
 // =============================================================================
 // PUBLIC VIEW ROUTES
 // =============================================================================
-app.get('/', (req, res) => {
-  res.render('index.ejs');
+app.get('/', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT section, data FROM landing_content');
+    const content = {};
+    for (const row of rows) {
+      try { content[row.section] = JSON.parse(row.data); }
+      catch { content[row.section] = row.data; }
+    }
+    res.render('index', { content });
+  } catch (err) {
+    res.render('index', { content: {} });
+  }
 });
 
 app.get('/service', (req, res) => {
@@ -450,23 +460,30 @@ app.get('/api/regulations/airline/:id', async (req, res) => {
 // ADMIN AUTH ROUTES
 // =============================================================================
 
-// GET /admin - Serve admin SPA
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
-});
+// GET /admin - Serve admin CMS SPA (static files handle this via app.use below)
 
 // GET /admin/login - Render admin login page
 app.get('/admin/login', (req, res) => {
   res.render('admin-login.ejs');
 });
 
-// POST /admin/login - Verify admin password
+// POST /admin/login - Verify admin credentials
+// Supports both EJS form (password only) and SPA (username + password)
 app.post('/admin/login', (req, res) => {
-  const { password, login_password } = req.body;
+  const { username, password, login_password } = req.body;
   const pw = password || login_password;
-  if (pw === process.env.ADMIN_PASSWORD) {
+  const user = username || 'admin';
+  // Admin login: username='admin' + password must match ADMIN_PASSWORD
+  if (user === 'admin' && pw === process.env.ADMIN_PASSWORD) {
     req.session.adminLoggedIn = true;
+    // SPA clients expect JSON or redirect; EJS form expects redirect
+    if (req.xhr || req.headers.accept?.includes('json')) {
+      return res.json({ success: true });
+    }
     return res.redirect('/admin');
+  }
+  if (req.xhr || req.headers.accept?.includes('json')) {
+    return res.status(401).json({ success: false, error: 'Invalid credentials' });
   }
   res.redirect('/admin/login?error=1');
 });
@@ -478,12 +495,60 @@ app.get('/admin/logout', (req, res) => {
   });
 });
 
+// GET /admin/me - Check if admin is logged in (JSON for SPA)
+app.get('/admin/me', (req, res) => {
+  if (req.session && req.session.adminLoggedIn) {
+    res.json({ loggedIn: true });
+  } else {
+    res.status(401).json({ loggedIn: false });
+  }
+});
+
+// =============================================================================
+// PUBLIC LANDING CONTENT API — no auth needed
+// =============================================================================
+app.get('/api/landing/:section', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT data FROM landing_content WHERE section = ?', [req.params.section]);
+    if (!rows[0]) return res.status(404).json({ error: 'Section not found' });
+    try { res.json(JSON.parse(rows[0].data)); }
+    catch { res.json(rows[0].data); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/landing', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT section, data FROM landing_content');
+    const result = {};
+    for (const row of rows) result[row.section] = row.data;
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // =============================================================================
 // ADMIN API ROUTES (Protected)
 // =============================================================================
 
 // All /api/admin/* routes require auth
 app.use('/api/admin', requireAdmin);
+
+// Landing content write routes (protected by requireAdmin above)
+// PUT /api/admin/landing/:section — upsert a landing section
+app.put('/api/admin/landing/:section', async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT INTO landing_content (section, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)',
+      [req.params.section, JSON.stringify(req.body)]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // =============================================================================
 // ADMIN PET CRUD ENDPOINTS (REST-style)
@@ -2042,15 +2107,20 @@ app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
 });
 
 // =============================================================================
-// CLIENTS SPA STATIC FILES (CRM for managing all clients — not the client portal)
+// CRM PORTAL (/CRM/) — dual login: CRM Admin or Client
 // =============================================================================
-app.use('/clients', express.static(path.join(__dirname, 'public', 'clients')));
+app.use('/CRM', express.static(path.join(__dirname, 'public', 'CRM')));
+app.get('/CRM', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
+});
+
+// Redirect old /clients → /CRM
 app.get('/clients', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'clients', 'index.html'));
+  res.redirect('/CRM');
 });
 
 // =============================================================================
-// ADMIN SPA STATIC FILES
+// ADMIN CMS STATIC FILES (/admin/) — landing page CMS
 // =============================================================================
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
