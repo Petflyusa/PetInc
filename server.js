@@ -2103,11 +2103,6 @@ app.get('/CRM', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
 });
 
-// Redirect old /clients → /CRM
-app.get('/clients', (req, res) => {
-  res.redirect('/CRM');
-});
-
 // =============================================================================
 // ADMIN CMS STATIC FILES (/admin/) — landing page CMS
 // =============================================================================
