@@ -77,11 +77,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =============================================================================
-// SUPABASE COMPATIBILITY PROXY — must be before express.static to intercept
-// =============================================================================
-app.all('/rest/v1/:table', (req, res) => { res.json([]); });
-app.all('/storage/v1/:path(*)', (req, res) => { res.json([]); });
-app.all('/auth/v1/:path(*)', (req, res) => { res.json({ data: { session: null, user: null }, error: null }); });
+
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -936,6 +932,36 @@ app.all('/api/admin/:action', async (req, res) => {
       return res.json({ success: true });
     }
 
+    // ========== DOCUMENTS (client_documents) ==========
+    if (action === 'list_documents') {
+      const [rows] = await pool.query('SELECT * FROM client_documents ORDER BY created_at DESC');
+      return res.json(rows);
+    }
+    if (action === 'get_document') {
+      const [rows] = await pool.execute('SELECT * FROM client_documents WHERE id = ?', [id]);
+      return res.json(rows[0] || null);
+    }
+    if (action === 'add_document') {
+      const { client_id, pet_id, name, type, expiry_date, status, file_url } = req.body;
+      const [result] = await pool.execute(
+        'INSERT INTO client_documents (client_id, pet_id, name, type, expiry_date, status, file_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [client_id || null, pet_id || null, name || '', type || '', expiry_date || '', status || '', file_url || '']
+      );
+      return res.json({ success: true, id: result.insertId });
+    }
+    if (action === 'update_document') {
+      const { client_id, pet_id, name, type, expiry_date, status, file_url } = req.body;
+      await pool.execute(
+        'UPDATE client_documents SET client_id=?, pet_id=?, name=?, type=?, expiry_date=?, status=?, file_url=? WHERE id=?',
+        [client_id || null, pet_id || null, name || '', type || '', expiry_date || '', status || '', file_url || '', id]
+      );
+      return res.json({ success: true });
+    }
+    if (action === 'delete_document') {
+      await pool.execute('DELETE FROM client_documents WHERE id = ?', [id]);
+      return res.json({ success: true });
+    }
+
     // ========== STATS ==========
     if (action === 'stats') {
       const [[quotes], [contacts], [countries], [airlines], [clients], [pets], [services]] = await Promise.all([
@@ -1365,6 +1391,28 @@ app.post('/api/client/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/logout — destroy session (maps to bi.auth.logOut())
+app.post('/api/auth/logout', (req, res) => {
+  if (req.session) {
+    req.session.destroy((err) => {
+      if (err) return res.status(500).json({ error: 'Logout failed' });
+      res.clearCookie('connect.sid');
+      res.json({ error: null });
+    });
+  } else {
+    res.json({ error: null });
+  }
+});
+
+// GET /api/auth/logout — same as POST, destroy session (for <a> tag / script src)
+app.get('/api/auth/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) return res.redirect('/CRM?error=logout');
+    res.clearCookie('connect.sid');
+    res.redirect('/CRM');
+  });
+});
+
 // GET /api/client/data - Get all client data (pets, services, quotes, docs, messages)
 app.get('/api/client/data', requireClient, async (req, res) => {
   try {
@@ -1427,6 +1475,139 @@ app.post('/api/client/messages', requireClient, async (req, res) => {
     res.json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('Message error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// CLIENT PETS (maps to bi.from('pets').insert/update/delete)
+// =============================================================================
+app.post('/api/client/pets', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { id, name, breed, type, origin, destination, image, status, status_color, details } = req.body;
+    const [result] = await pool.execute(
+      'INSERT INTO client_pets (client_id, name, breed, type, origin, destination, image, status, status_color, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [clientId, name||'', breed||'', type||'', origin||'', destination||'', image||'', status||'pending', status_color||'', details||'']
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Add pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/client/pets/:id', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { name, breed, type, origin, destination, image, status, status_color, details } = req.body;
+    await pool.execute(
+      'UPDATE client_pets SET name=?, breed=?, type=?, origin=?, destination=?, image=?, status=?, status_color=?, details=? WHERE id=? AND client_id=?',
+      [name||'', breed||'', type||'', origin||'', destination||'', image||'', status||'pending', status_color||'', details||'', req.params.id, clientId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/client/pets/:id', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    await pool.execute('DELETE FROM client_pets WHERE id=? AND client_id=?', [req.params.id, clientId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete pet error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// CLIENT DOCUMENTS (maps to bi.from('documents').insert/delete)
+// =============================================================================
+app.post('/api/client/documents', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { id, pet_id, name, type, expiry_date, status, icon, file_url } = req.body;
+    const [result] = await pool.execute(
+      'INSERT INTO client_documents (client_id, pet_id, name, type, expiry_date, status, icon, file_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [clientId, pet_id||null, name||'', type||'', expiry_date||'', status||'', icon||'', file_url||'']
+    );
+    res.json({ success: true, id: result.insertId });
+  } catch (err) {
+    console.error('Add document error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/client/documents/:id', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    await pool.execute('DELETE FROM client_documents WHERE id=? AND client_id=?', [req.params.id, clientId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete document error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// CLIENT SERVICES / JOURNEYS (maps to bi.from('journeys').upsert)
+// =============================================================================
+app.post('/api/client/journeys', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages } = req.body;
+    // Upsert: update if exists (by id), insert if not
+    if (id) {
+      await pool.execute(
+        'UPDATE client_services SET pet_id=?, overall_progress=?, current_location=?, estimated_arrival=?, airline=?, flight_no=?, tracking_id=?, stages=? WHERE id=? AND client_id=?',
+        [pet_id||null, overall_progress||0, current_location||'', estimated_arrival||'', airline||'', flight_no||'', tracking_id||'', stages||'', id, clientId]
+      );
+      res.json({ success: true, id });
+    } else {
+      const [result] = await pool.execute(
+        'INSERT INTO client_services (client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [clientId, pet_id||null, overall_progress||0, current_location||'', estimated_arrival||'', airline||'', flight_no||'', tracking_id||'', stages||'']
+      );
+      res.json({ success: true, id: result.insertId });
+    }
+  } catch (err) {
+    console.error('Journey upsert error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// =============================================================================
+// CLIENT QUOTES (maps to bi.from('quotes').upsert)
+// =============================================================================
+app.post('/api/client/quotes', requireClient, async (req, res) => {
+  try {
+    const clientId = req.session.clientId;
+    if (!clientId) return res.status(401).json({ error: 'Not logged in' });
+    const { id, ref, route, status, pet_quotes } = req.body;
+    if (id) {
+      await pool.execute(
+        'UPDATE client_quotes SET ref=?, route=?, status=?, pet_quotes=? WHERE id=? AND client_id=?',
+        [ref||'', route||'', status||'pending', pet_quotes||'', id, clientId]
+      );
+      res.json({ success: true, id });
+    } else {
+      const [result] = await pool.execute(
+        'INSERT INTO client_quotes (client_id, ref, route, status, pet_quotes) VALUES (?, ?, ?, ?, ?)',
+        [clientId, ref||'', route||'', status||'pending', pet_quotes||'']
+      );
+      res.json({ success: true, id: result.insertId });
+    }
+  } catch (err) {
+    console.error('Quote upsert error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
