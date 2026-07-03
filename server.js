@@ -2316,44 +2316,38 @@ app.get('/CRM/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
 });
 
-// Storage proxy: /storage/v1/object/{bucket}/{filename} → local file storage (CRM bundle uploads here)
-app.all('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
-  const { bucket, filename } = req.params;
+// Storage proxy: /storage/v1/object/upload/{bucket}/{filename} → local file storage
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-  if (req.method === 'POST' || req.method === 'PUT') {
-    // Handle upload
-    const contentType = req.headers['content-type'] || '';
-    if (contentType.includes('multipart/form-data')) {
-      // Collect body
-      let data = '';
-      req.on('data', chunk => data += chunk);
-      req.on('end', () => {
-        try {
-          const buf = Buffer.from(data);
-          // Find file content after headers (simple extraction)
-          const headerEnd = buf.indexOf('\r\n\r\n');
-          if (headerEnd === -1) return res.status(400).json([{ message: 'Invalid multipart' }]);
-          const fileContent = buf.slice(headerEnd + 4);
-          const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-          const filePath = path.join(uploadsDir, safeName);
-          fs.writeFileSync(filePath, fileContent);
-          res.json({ path: `/api/files/${bucket}/${safeName}`, error: null });
-        } catch (e) {
-          res.status(500).json([{ message: e.message }]);
-        }
-      });
-    } else {
-      res.status(400).json([{ message: 'Expected multipart/form-data' }]);
+app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
+  const { bucket, filename } = req.params;
+  const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+  const filePath = path.join(uploadsDir, safeName);
+
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    try {
+      const buf = Buffer.concat(chunks);
+      // Strip multipart headers to get raw file content
+      const headerEnd = buf.indexOf('\r\n\r\n');
+      const fileContent = headerEnd === -1 ? buf : buf.slice(headerEnd + 4);
+      fs.writeFileSync(filePath, fileContent);
+      res.json({ path: `/api/files/${bucket}/${safeName}`, error: null });
+    } catch (e) {
+      res.status(500).json([{ message: e.message }]);
     }
-  } else {
-    // GET public file
-    const filePath = path.join(uploadsDir, filename);
-    if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      res.status(404).json([{ message: 'File not found' }]);
-    }
-  }
+  });
+  req.on('error', () => res.status(500).json([{ message: 'Upload failed' }]));
+});
+
+// Serve uploaded files
+app.get('/storage/v1/object/public/:bucket/:filename', (req, res) => {
+  const { bucket, filename } = req.params;
+  const filePath = path.join(uploadsDir, filename);
+  if (fs.existsSync(filePath)) return res.sendFile(filePath);
+  res.status(404).json([{ message: 'File not found' }]);
 });
 
 // Redirect /login → /CRM/login so Express doesn't 404 on React Router's redirect
