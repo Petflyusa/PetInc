@@ -370,7 +370,7 @@ app.post('/api/files/upload-json', (req, res) => {
     if (!b64) return res.status(400).json({ error: 'No data provided' });
     const buf = Buffer.from(b64, 'base64');
     const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext || 'bin'}`;
-    const filePath = path.join(uploadsDir, safeName);
+    const filePath = path.join(UPLOAD_DIR, safeName);
     fs.writeFileSync(filePath, buf);
     res.json({ path: `/api/files/uploads/${safeName}`, publicUrl: `/api/files/uploads/${safeName}`, error: null });
   } catch (e) {
@@ -2762,14 +2762,11 @@ app.get('/CRM/*', (req, res) => {
 });
 
 // ── Storage upload routes ───────────────────────────────────────────────────────
-const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
 // POST /storage/v1/object/{bucket}/{filename} — raw binary (Supabase storage API compatible)
 app.post('/storage/v1/object/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-  const filePath = path.join(uploadsDir, safeName);
+  const filePath = path.join(UPLOAD_DIR, safeName);
 
   const chunks = [];
   req.on('data', chunk => chunks.push(chunk));
@@ -2793,7 +2790,7 @@ app.post('/storage/v1/object/:bucket/:filename', (req, res) => {
 app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
-  const filePath = path.join(uploadsDir, safeName);
+  const filePath = path.join(UPLOAD_DIR, safeName);
 
   const chunks = [];
   req.on('data', chunk => chunks.push(chunk));
@@ -2818,7 +2815,7 @@ app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
 // Serve uploaded files
 app.get('/storage/v1/object/public/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
-  const filePath = path.join(uploadsDir, filename);
+  const filePath = path.join(UPLOAD_DIR, filename);
   if (fs.existsSync(filePath)) return res.sendFile(filePath);
   res.status(404).json([{ message: 'File not found' }]);
 });
