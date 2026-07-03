@@ -145,7 +145,7 @@ const api = {
       ...opts,
       body: opts.body && typeof opts.body !== 'string' ? JSON.stringify(opts.body) : opts.body
     });
-    if (res.status === 401 || res.status === 302) { admin = null; render(); return null; }
+    if (res.status === 401 || res.status === 302) { admin = null; renderLogin(); return null; }
     return res.json();
   },
   get: (path) => api.call(path),
