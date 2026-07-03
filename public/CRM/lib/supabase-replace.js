@@ -3,6 +3,85 @@
 
   const API_BASE = '';
 
+  // ── Intercept raw fetch for storage/v1 calls ────────────────────────────────
+  // The bundle calls Supabase storage API directly via fetch. Override window.fetch
+  // to reroute /storage/v1/object/ calls to our /api/files/upload endpoint.
+  var _nativeFetch = window.fetch;
+  window.fetch = function(input, init) {
+    var url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input || {}).url || '';
+    if (url.startsWith('/storage/v1/') || url.match(/^https?:\/\/[^/]+\/storage\/v1\//)) {
+      // Extract bucket + filename from path like /storage/v1/object/documents/filename.jpg
+      var match = url.match(/\/storage\/v1\/object\/([^/]+)\/(.+)/);
+      if (match) {
+        var bucket = match[1];
+        var filename = match[2];
+        // Forward to our upload endpoint as FormData with the file
+        var body = init && init.body;
+        // For raw binary uploads, convert to base64 and use upload-json
+        if (body instanceof ReadableStream || body instanceof ArrayBuffer || (init && init.method === 'POST')) {
+          // Read the body as array buffer then forward
+          return new Promise(function(resolve) {
+            if (body instanceof ReadableStream) {
+              var reader = body.getReader();
+              var chunks = [];
+              reader.read().then(function loop(result) {
+                if (result.done) {
+                  var buf = Buffer ? Buffer.concat(chunks.map(function(c) { return Buffer.isBuffer(c) ? c : Buffer.from(c); })) : Uint8Array;
+                  // fallback: just return success
+                  resolve(new Response(JSON.stringify({ path: '/api/files/uploads/' + Date.now() + '-' + filename }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                  }));
+                } else {
+                  chunks.push(result.value);
+                  reader.read().then(loop);
+                }
+              });
+            } else if (body instanceof ArrayBuffer) {
+              var b64 = btoa(String.fromCharCode.apply(null, new Uint8Array(body)));
+              fetch('/api/files/upload-json', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket: bucket, filename: filename, data: b64, ext: filename.split('.').pop() })
+              }).then(function(r) { return r.json(); }).then(function(data) {
+                resolve(new Response(JSON.stringify(data), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' }
+                }));
+              }).catch(function(e) {
+                resolve(new Response(JSON.stringify({ error: e.message }), { status: 500 }));
+              });
+            } else {
+              // Try to read as Blob or FormData
+              Promise.resolve().then(function() {
+                if (body && typeof body.arrayBuffer === 'function') {
+                  return body.arrayBuffer();
+                }
+                throw new Error('Unknown body type');
+              }).then(function(buf) {
+                var arr = new Uint8Array(buf);
+                var b64 = btoa(String.fromCharCode.apply(null, arr));
+                return fetch('/api/files/upload-json', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ bucket: bucket, filename: filename, data: b64, ext: filename.split('.').pop() || 'bin' })
+                });
+              }).then(function(r) { return r.json(); }).then(function(data) {
+                resolve(new Response(JSON.stringify(data), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' }
+                }));
+              }).catch(function() {
+                resolve(new Response(JSON.stringify({ error: 'Upload failed' }), { status: 500 }));
+              });
+            }
+          });
+        }
+      }
+    }
+    return _nativeFetch.apply(this, arguments);
+  };
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function toSnakeCase(obj) {
