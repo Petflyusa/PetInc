@@ -1404,9 +1404,9 @@ app.get('/rest/v1/:table', async (req, res) => {
     documents: 'client_documents', journeys: 'client_journeys', quotes: 'quotes'
   };
   const col = tableMap[table];
-  if (!col || !req.session.clientId) {
-    return res.status(401).json([{ message: 'Unauthorized' }]);
-  }
+  // Return [] for unauthenticated instead of 401 — keeps the app quiet
+  if (!col) return res.status(200).json([]);
+  if (!req.session || !req.session.clientId) return res.status(200).json([]);
   try {
     const [rows] = await pool.query(
       `SELECT * FROM ${col} WHERE client_id = ? ORDER BY id DESC`,
@@ -2314,25 +2314,6 @@ app.get('/CRM', (req, res) => {
 // Catch-all: serve SPA for all /CRM/* routes so React Router handles them client-side
 app.get('/CRM/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
-});
-
-// Proxy /rest/v1/* → returns [] for unauth requests (CRM bundle bypasses polyfill for these)
-app.all('/rest/v1/:table', (req, res) => {
-  // Return empty array for unauthenticated — prevents 401 flood, app handles null data gracefully
-  if (!req.session || !req.session.clientId) {
-    return res.status(200).json([]);
-  }
-  // Authenticated — route to the real client data endpoint
-  const table = req.params.table;
-  const writeMap = {
-    clients: '/api/client/clients', pets: '/api/client/pets',
-    documents: '/api/client/documents', journeys: '/api/client/journeys',
-    quotes: '/api/client/quotes'
-  };
-  const endpoint = table && writeMap[table] ? writeMap[table] : '/api/client/data';
-  // Use next() to let the matching route handler run (it's already registered above)
-  req.url = endpoint;
-  app._router.handle(req, res, () => {});
 });
 
 // Redirect /login → /CRM/login so React Router's redirect doesn't 404
