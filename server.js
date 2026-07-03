@@ -2311,6 +2311,9 @@ app.get('/CRM', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
 });
 
+// Redirect /login → /CRM/login so React Router's redirect doesn't 404
+app.get('/login', (req, res) => res.redirect('/CRM/login'));
+
 // =============================================================================
 // ADMIN CMS STATIC FILES (/admin/) — landing page CMS
 // =============================================================================
