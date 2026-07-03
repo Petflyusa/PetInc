@@ -88,14 +88,13 @@
             body.arrayBuffer().then(sendB64).catch(function() {
               resolve(new Response(JSON.stringify({ error: 'Upload failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } }));
             });
-          } else {
-            // ReadableStream
-            var reader = body.getReader();
+          } else if (typeof body.stream === 'function') {
+            // ReadableStream (body.stream() returns a readable stream)
+            var reader = body.stream().getReader();
             var chunks = [];
             function step() {
               reader.read().then(function(r) {
                 if (r.done) {
-                  // Concatenate chunks
                   var total = 0;
                   chunks.forEach(function(c) { total += c.length; });
                   var buf = new Uint8Array(total);
@@ -112,6 +111,16 @@
               });
             }
             step();
+          } else {
+            // Fallback: try to get arrayBuffer (handles Blob, File, etc.)
+            var fallback = body && body.arrayBuffer;
+            if (typeof fallback === 'function') {
+              fallback.call(body).then(sendB64).catch(function() {
+                resolve(new Response(JSON.stringify({ error: 'Upload failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } }));
+              });
+            } else {
+              resolve(new Response(JSON.stringify({ error: 'Upload failed: unknown body type ' + typeof body }), { status: 500, headers: { 'Content-Type': 'application/json' } }));
+            }
           }
         });
       }
