@@ -192,7 +192,14 @@ async function login(username, password) {
 
 // ─── LOAD DATA ───────────────────────────────────────────────────────────────
 async function loadLanding() {
-  landingData = await api.get('/api/landing') || {};
+  const raw = await api.get('/api/landing') || {};
+  // API returns all values as JSON-encoded strings — parse them back
+  for (const key of Object.keys(raw)) {
+    if (typeof raw[key] === 'string') {
+      try { raw[key] = JSON.parse(raw[key]); } catch {}
+    }
+  }
+  landingData = raw;
 }
 
 async function loadQuotes() {
