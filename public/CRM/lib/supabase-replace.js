@@ -22,7 +22,7 @@
   // ── GLOBAL FETCH INTERCEPTOR ────────────────────────────────────────────────
   // Route all Supabase JS client fetch calls to our Express server with session cookies
   const _originalFetch = window.fetch;
-  window.fetch = function (input, init) {
+  window.fetch = async function (input, init) {
     const url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input && input.url) || '';
     const supabaseMatch = url.match(/https?:\/\/([^/]+)\.supabase\.co(\/.*)/);
     const isOurOrigin = url.startsWith('https://petflyinc.com') || url.startsWith('http://petflyinc.com');
@@ -54,16 +54,39 @@
         // Convert body to base64 JSON for reliable transport
         let body = opts.body;
         let binaryData = null;
-        if (body) {
-          if (typeof body === 'string') {
-            binaryData = btoa(body);
-          } else if (body instanceof ArrayBuffer) {
-            binaryData = btoa(String.fromCharCode(...new Uint8Array(body)));
-          } else if (body instanceof Uint8Array) {
-            binaryData = btoa(String.fromCharCode(...body));
+        let fileName = filename;
+        if (body instanceof FormData) {
+          // Extract the file from FormData and base64-encode it
+          const entries = [...body.entries()];
+          for (const [key, value] of entries) {
+            if (value instanceof File || value instanceof Blob) {
+              fileName = key; // 'file' is the conventional field name
+              binaryData = await value.arrayBuffer().then(ab => {
+                const bytes = new Uint8Array(ab);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                return btoa(binary);
+              });
+              break;
+            }
           }
+        } else if (typeof body === 'string') {
+          binaryData = btoa(body);
+        } else if (body instanceof ArrayBuffer) {
+          const bytes = new Uint8Array(body);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+          binaryData = btoa(binary);
+        } else if (body instanceof Uint8Array) {
+          let binary = '';
+          for (let i = 0; i < body.length; i++) binary += String.fromCharCode(body[i]);
+          binaryData = btoa(binary);
         }
-        const payload = { bucket, filename, data: binaryData, ext: filename.split('.').pop() || 'bin' };
+        if (binaryData === null) {
+          console.error('[supabase-replace] storage: could not extract binary from body type:', typeof body);
+          return new Response(JSON.stringify({ error: 'No data provided' }), { status: 400, headers: { 'content-type': 'application/json' } });
+        }
+        const payload = { bucket, filename: fileName, data: binaryData, ext: fileName.split('.').pop() || 'bin' };
         opts.body = JSON.stringify(payload);
         opts.headers = opts.headers || {};
         opts.headers['content-type'] = 'application/json';
