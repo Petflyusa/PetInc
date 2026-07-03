@@ -24,9 +24,10 @@
   const _originalFetch = window.fetch;
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input && input.url) || '';
-    const supabaseMatch = url.match(/https?:\/\/([^\/]+)\.supabase\.co(\/.*)/);
+    const supabaseMatch = url.match(/https?:\/\/([^/]+)\.supabase\.co(\/.*)/);
+    const isOurOrigin = url.startsWith('https://petflyinc.com') || url.startsWith('http://petflyinc.com');
     if (supabaseMatch) {
-      const path = supabaseMatch[2]; // e.g. /rest/v1/clients
+      const path = supabaseMatch[2];
       const rewriteMap = {
         '/rest/v1': '/api/client/data',
         '/storage/v1/object/public': '/api/files/public',
@@ -34,18 +35,41 @@
       };
       let mapped = rewriteMap[path];
       if (!mapped) {
-        // Generic: /rest/v1/table → /api/client/data (for reads)
         if (path.startsWith('/rest/v1/')) mapped = '/api/client/data';
       }
       if (mapped) {
         const opts = init || {};
         opts.credentials = 'include';
         return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
-      } else if (url.includes('.supabase.co/storage/')) {
-        // Route all storage URLs to our file API
+      }
+    } else if (isOurOrigin && url.includes('/storage/v1/')) {
+      // Rewrite our own domain's storage calls to our raw upload API
+      // Pattern: /storage/v1/object/{bucket}/{filename} or /storage/v1/object/upload/{bucket}/{filename}
+      const storageMatch = url.match(/\/storage\/v1\/object\/(?:upload\/)?([^/]+)\/(.+)/);
+      if (storageMatch) {
+        const [, bucket, filename] = storageMatch;
+        const ext = filename.split('.').pop() || 'bin';
         const opts = init || {};
+        opts.method = 'POST';
         opts.credentials = 'include';
-        return _originalFetch.call(window, '/api/files/upload' + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
+        opts.headers = opts.headers || {};
+        opts.headers['x-file-ext'] = ext;
+        opts.headers['x-file-name'] = filename;
+        // body is the binary file content - keep it in the request
+        return _originalFetch.call(window, '/api/files/upload-raw', opts).then(res => {
+          // If successful, return a mock response with the path
+          if (res.ok) {
+            return res.json().then(data => {
+              // Return a mock Response that matches what Supabase storage expects
+              return new Response(JSON.stringify({ path: data.path, error: null }), {
+                status: 200,
+                statusText: 'OK',
+                headers: { 'content-type': 'application/json' }
+              });
+            });
+          }
+          return res;
+        });
       }
     }
     return _originalFetch.apply(window, arguments);
