@@ -2926,6 +2926,12 @@ app.get('*', (req, res) => {
     return res.status(404).send('Not Found');
   }
   // Serve CRM SPA — React Router will handle the URL client-side
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
   res.sendFile(CRM_INDEX);
 });
 
