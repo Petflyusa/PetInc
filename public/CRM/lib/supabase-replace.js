@@ -89,9 +89,12 @@
           return new Response(JSON.stringify({ error: 'No data provided' }), { status: 400, headers: { 'content-type': 'application/json' } });
         }
         const payload = { bucket, filename: fileName, data: binaryData, ext: fileName.split('.').pop() || 'bin' };
+        console.log('[supabase-replace] uploading payload filename:', payload.filename, 'data length:', payload.data ? payload.data.length : 'null', 'ext:', payload.ext);
+        console.log('[supabase-replace] data preview:', payload.data ? payload.data.substring(0, 50) : 'null');
         opts.body = JSON.stringify(payload);
         opts.headers = opts.headers || {};
         opts.headers['content-type'] = 'application/json';
+        console.log('[supabase-replace] fetch opts:', JSON.stringify({method: opts.method, credentials: opts.credentials, headers: opts.headers, bodyLength: opts.body ? opts.body.length : 'n/a'}));
         return _originalFetch.call(window, '/api/files/upload-json', opts).then(res => {
           if (res.ok) {
             return res.json().then(data => {
