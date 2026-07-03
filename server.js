@@ -905,6 +905,9 @@ app.delete('/api/crm/journeys/:id', async (req, res) => {
 // All /api/admin/* routes require auth
 app.use('/api/admin', requireAdmin);
 
+// CRM admin routes
+app.use('/api/admin/crm', requireAdmin, require('./routes/crm-admin'));
+
 // Landing content write routes (protected by requireAdmin above)
 // PUT /api/admin/landing/:section — upsert a landing section
 app.put('/api/admin/landing/:section', async (req, res) => {
