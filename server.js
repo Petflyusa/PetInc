@@ -27,6 +27,8 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 2
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const crmPool = require('./db/crm');
+
 // View engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -536,6 +538,362 @@ app.get('/api/landing', async (req, res) => {
     for (const row of rows) result[row.section] = row.data;
     res.json(result);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
+// CRM API ROUTES
+// =============================================================================
+
+// CRM Clients
+app.get('/api/crm/clients', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_clients ORDER BY id DESC');
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/clients/:id', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/clients', async (req, res) => {
+  const { name, initials, location, address, phone, email, status, password } = req.body;
+  try {
+    const [result] = await crmPool.query(
+      'INSERT INTO crm_clients (name, initials, location, address, phone, email, status, password) VALUES (?,?,?,?,?,?,?,?)',
+      [name, initials, location, address, phone, email, status || 'active', password]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/clients/:id', async (req, res) => {
+  const { name, initials, location, address, phone, email, status, password } = req.body;
+  try {
+    await crmPool.query(
+      'UPDATE crm_clients SET name=?,initials=?,location=?,address=?,phone=?,email=?,status=?,password=? WHERE id=?',
+      [name, initials, location, address, phone, email, status, password, req.params.id]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/clients/:id', async (req, res) => {
+  try {
+    await crmPool.query('DELETE FROM crm_clients WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CRM Pets
+app.get('/api/crm/pets', async (req, res) => {
+  try {
+    let sql = 'SELECT * FROM crm_pets';
+    const params = [];
+    if (req.query.client_id) { sql += ' WHERE client_id = ?'; params.push(req.query.client_id); }
+    sql += ' ORDER BY id DESC';
+    const [rows] = await crmPool.query(sql, params);
+    rows.forEach(r => { if (r.details) r.details = JSON.parse(r.details); });
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/pets/:id', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/pets', async (req, res) => {
+  const { client_id, name, breed, type, origin, destination, image, status, status_color, details } = req.body;
+  try {
+    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : details;
+    const [result] = await crmPool.query(
+      'INSERT INTO crm_pets (client_id,name,breed,type,origin,destination,image,status,status_color,details) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [result.insertId]);
+    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/pets/:id', async (req, res) => {
+  const { client_id, name, breed, type, origin, destination, image, status, status_color, details } = req.body;
+  try {
+    const detailsStr = typeof details === 'object' ? JSON.stringify(details) : details;
+    await crmPool.query(
+      'UPDATE crm_pets SET client_id=?,name=?,breed=?,type=?,origin=?,destination=?,image=?,status=?,status_color=?,details=? WHERE id=?',
+      [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr, req.params.id]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [req.params.id]);
+    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/pets/:id', async (req, res) => {
+  try {
+    await crmPool.query('DELETE FROM crm_pets WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CRM Documents
+app.get('/api/crm/documents', async (req, res) => {
+  try {
+    let sql = 'SELECT * FROM crm_documents';
+    const params = [];
+    const conditions = [];
+    if (req.query.client_id) { conditions.push('client_id = ?'); params.push(req.query.client_id); }
+    if (req.query.pet_id) { conditions.push('pet_id = ?'); params.push(req.query.pet_id); }
+    if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+    sql += ' ORDER BY id DESC';
+    const [rows] = await crmPool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/documents/:id', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_documents WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/documents', async (req, res) => {
+  const { client_id, pet_id, name, type, expiry_date, status, icon, file_url } = req.body;
+  try {
+    const [result] = await crmPool.query(
+      'INSERT INTO crm_documents (client_id,pet_id,name,type,expiry_date,status,icon,file_url) VALUES (?,?,?,?,?,?,?,?)',
+      [client_id, pet_id||null, name, type, expiry_date, status, icon, file_url]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_documents WHERE id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/documents/:id', async (req, res) => {
+  const { client_id, pet_id, name, type, expiry_date, status, icon, file_url } = req.body;
+  try {
+    await crmPool.query(
+      'UPDATE crm_documents SET client_id=?,pet_id=?,name=?,type=?,expiry_date=?,status=?,icon=?,file_url=? WHERE id=?',
+      [client_id, pet_id||null, name, type, expiry_date, status, icon, file_url, req.params.id]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_documents WHERE id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/documents/:id', async (req, res) => {
+  try {
+    await crmPool.query('DELETE FROM crm_documents WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CRM Quotes
+app.get('/api/crm/quotes', async (req, res) => {
+  try {
+    let sql = 'SELECT * FROM crm_quotes';
+    const params = [];
+    if (req.query.client_id) { sql += ' WHERE client_id = ?'; params.push(req.query.client_id); }
+    sql += ' ORDER BY id DESC';
+    const [rows] = await crmPool.query(sql, params);
+    rows.forEach(r => { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); });
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/quotes/:id', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/quotes', async (req, res) => {
+  const { id, client_id, ref, route, status, pet_quotes } = req.body;
+  try {
+    const petQuotesStr = typeof pet_quotes === 'object' ? JSON.stringify(pet_quotes) : pet_quotes;
+    const [existing] = await crmPool.query('SELECT id FROM crm_quotes WHERE id = ?', [id]);
+    if (existing.length) {
+      await crmPool.query('UPDATE crm_quotes SET client_id=?,ref=?,route=?,status=?,pet_quotes=? WHERE id=?',
+        [client_id, ref, route, status, petQuotesStr, id]);
+    } else {
+      await crmPool.query('INSERT INTO crm_quotes (id,client_id,ref,route,status,pet_quotes) VALUES (?,?,?,?,?,?)',
+        [id, client_id, ref, route, status, petQuotesStr]);
+    }
+    const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [id]);
+    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/quotes/:id', async (req, res) => {
+  const { client_id, ref, route, status, pet_quotes } = req.body;
+  try {
+    const petQuotesStr = typeof pet_quotes === 'object' ? JSON.stringify(pet_quotes) : pet_quotes;
+    await crmPool.query('UPDATE crm_quotes SET client_id=?,ref=?,route=?,status=?,pet_quotes=? WHERE id=?',
+      [client_id, ref, route, status, petQuotesStr, req.params.id]);
+    const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [req.params.id]);
+    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/quotes/:id', async (req, res) => {
+  try {
+    await crmPool.query('DELETE FROM crm_quotes WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// CRM Journeys
+app.get('/api/crm/journeys', async (req, res) => {
+  try {
+    let sql = 'SELECT * FROM crm_journeys';
+    const params = [];
+    const conditions = [];
+    if (req.query.client_id) { conditions.push('client_id = ?'); params.push(req.query.client_id); }
+    if (req.query.pet_id) { conditions.push('pet_id = ?'); params.push(req.query.pet_id); }
+    if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+    sql += ' ORDER BY id DESC';
+    const [rows] = await crmPool.query(sql, params);
+    rows.forEach(r => { if (r.stages) r.stages = JSON.parse(r.stages); });
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/journeys/:id', async (req, res) => {
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/journeys', async (req, res) => {
+  const { id, client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages } = req.body;
+  try {
+    const stagesStr = typeof stages === 'object' ? JSON.stringify(stages) : stages;
+    await crmPool.query(
+      'INSERT INTO crm_journeys (id,client_id,pet_id,overall_progress,current_location,estimated_arrival,airline,flight_no,tracking_id,stages) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [id, client_id, pet_id, overall_progress||0, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [id]);
+    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/journeys/:id', async (req, res) => {
+  const { client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages } = req.body;
+  try {
+    const stagesStr = typeof stages === 'object' ? JSON.stringify(stages) : stages;
+    await crmPool.query(
+      'UPDATE crm_journeys SET client_id=?,pet_id=?,overall_progress=?,current_location=?,estimated_arrival=?,airline=?,flight_no=?,tracking_id=?,stages=? WHERE id=?',
+      [client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr, req.params.id]
+    );
+    const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [req.params.id]);
+    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/journeys/:id', async (req, res) => {
+  try {
+    await crmPool.query('DELETE FROM crm_journeys WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
