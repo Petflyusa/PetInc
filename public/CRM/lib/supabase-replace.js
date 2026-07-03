@@ -62,13 +62,12 @@
           for (const [key, value] of entries) {
             console.log('[supabase-replace] FormData entry:', key, Object.prototype.toString.call(value), 'instanceof File:', value instanceof File, 'instanceof Blob:', value instanceof Blob);
             if (value instanceof File || value instanceof Blob) {
-              fileName = key; // 'file' is the conventional field name
-              binaryData = await value.arrayBuffer().then(ab => {
-                const bytes = new Uint8Array(ab);
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                return btoa(binary);
-              });
+              fileName = value.name; // use the File object's name, not the FormData key (which is empty string)
+              const arrayBuffer = await value.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuffer);
+              let binary = '';
+              for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+              binaryData = btoa(binary);
               break;
             }
           }
