@@ -165,7 +165,7 @@ app.post('/api/quote', async (req, res) => {
     }
 
     const {
-      pet_type, pet_name, pet_weight, breed,
+      pet_type, pet_name, pet_weight, breed = '',
       origin_country, origin_city, dest_country, dest_city,
       travel_date, transport_type, contact_name, email,
       phone, referral, notes
