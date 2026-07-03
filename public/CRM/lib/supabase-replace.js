@@ -43,7 +43,7 @@
         return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
       }
     } else if (isOurOrigin && url.includes('/storage/v1/')) {
-      // Rewrite our own domain's storage calls to JSON-based upload
+      console.log('[supabase-replace] storage URL intercepted:', url);
       // Pattern: /storage/v1/object/{bucket}/{filename} or /storage/v1/object/upload/{bucket}/{filename}
       const storageMatch = url.match(/\/storage\/v1\/object\/(?:upload\/)?([^/]+)\/(.+)/);
       if (storageMatch) {
