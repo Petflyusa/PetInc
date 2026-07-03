@@ -41,6 +41,11 @@
         const opts = init || {};
         opts.credentials = 'include';
         return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
+      } else if (url.includes('.supabase.co/storage/')) {
+        // Route all storage URLs to our file API
+        const opts = init || {};
+        opts.credentials = 'include';
+        return _originalFetch.call(window, '/api/files/upload' + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
       }
     }
     return _originalFetch.apply(window, arguments);
@@ -48,6 +53,7 @@
 
   const SESSION_KEY = 'vg'; // matches the SPA's existing localStorage key
   const POLL_INTERVAL = 5000;
+  const MAX_POLLS = 3; // hard cap to prevent flooding after 401
   const BASE = '/api';
 
   // ── Auth state ──────────────────────────────────────────────────────────────
@@ -56,6 +62,7 @@
   let _listeners = [];
   let _pollTimer = null;
   let _polling = false;
+  let _pollCount = 0;
 
   function notifyListeners(event, session) {
     _listeners.forEach(function (fn) {
@@ -67,9 +74,16 @@
     if (_polling) return;
     _polling = true;
     _pollTimer = setInterval(async function () {
+      _pollCount++;
+      if (_pollCount > MAX_POLLS) {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        _polling = false;
+        return;
+      }
       try {
         const res = await fetch(BASE + '/client/data', { credentials: 'include' });
         if (res.ok) {
+          _pollCount = 0; // reset on success
           const data = await res.json();
           const newUser = (data && data.client) ? data.client : null;
           if (JSON.stringify(newUser) !== JSON.stringify(_user)) {
