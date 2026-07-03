@@ -43,6 +43,7 @@
         var bucket = match[1];
         var filename = match[2];
         var body = init && init.body;
+        console.log('[fetch-override] STORAGE body type:', Object.prototype.toString.call(body), 'keys:', body && typeof body === 'object' ? Object.keys(body) : 'N/A');
         // Read body as ArrayBuffer and forward as base64 JSON
         return new Promise(function(resolve) {
           function sendB64(buf) {
