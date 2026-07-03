@@ -55,10 +55,12 @@
         let body = opts.body;
         let binaryData = null;
         let fileName = filename;
+        console.log('[supabase-replace] body type:', Object.prototype.toString.call(body), 'isFormData:', body instanceof FormData, 'isFile:', body instanceof File, 'isBlob:', body instanceof Blob, 'bodyStr:', typeof body === 'string' ? body.substring(0, 100) : 'n/a');
         if (body instanceof FormData) {
           // Extract the file from FormData and base64-encode it
           const entries = [...body.entries()];
           for (const [key, value] of entries) {
+            console.log('[supabase-replace] FormData entry:', key, Object.prototype.toString.call(value), 'instanceof File:', value instanceof File, 'instanceof Blob:', value instanceof Blob);
             if (value instanceof File || value instanceof Blob) {
               fileName = key; // 'file' is the conventional field name
               binaryData = await value.arrayBuffer().then(ab => {
@@ -83,7 +85,8 @@
           binaryData = btoa(binary);
         }
         if (binaryData === null) {
-          console.error('[supabase-replace] storage: could not extract binary from body type:', typeof body);
+          console.error('[supabase-replace] storage: could not extract binary from body type:', typeof body, Object.prototype.toString.call(body));
+          console.error('[supabase-replace] body keys:', body && typeof body === 'object' ? Object.keys(body).join(', ') : 'none');
           return new Response(JSON.stringify({ error: 'No data provided' }), { status: 400, headers: { 'content-type': 'application/json' } });
         }
         const payload = { bucket, filename: fileName, data: binaryData, ext: fileName.split('.').pop() || 'bin' };
