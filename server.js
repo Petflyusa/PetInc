@@ -2914,6 +2914,21 @@ app.post('/api/admin/seed-crm', requireAdmin, async (req, res) => {
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
 // =============================================================================
+// =============================================================================
+// SPA Catch-all — serve CRM SPA for all non-API, non-static, non-file paths
+// React Router handles these client-side. Must be AFTER all real routes.
+const KNOWN_STATIC = /^\/(api|admin|CSR|css|js|assets|lib|fonts|images?|img|media|favicon|\.)/;
+const CRM_INDEX = path.join(__dirname, 'public', 'CRM', 'index.html');
+app.get('*', (req, res) => {
+  const path = req.path;
+  if (KNOWN_STATIC.test(path)) {
+    // Let static middleware or next handler deal with it
+    return res.status(404).send('Not Found');
+  }
+  // Serve CRM SPA — React Router will handle the URL client-side
+  res.sendFile(CRM_INDEX);
+});
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.message || err, err.stack);
