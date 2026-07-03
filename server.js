@@ -363,6 +363,7 @@ app.post('/api/files/upload', upload.single('file'), (req, res) => {
 // POST /api/files/upload-json — JSON base64 upload (for CRM storage polyfill rewrites)
 app.post('/api/files/upload-json', (req, res) => {
   try {
+    console.log('[upload-json] req.body:', JSON.stringify(req.body).substring(0, 200));
     const { bucket, filename, data: b64, ext } = req.body;
     if (!b64) return res.status(400).json({ error: 'No data provided' });
     const buf = Buffer.from(b64, 'base64');
