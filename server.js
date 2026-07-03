@@ -2330,16 +2330,19 @@ app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
   req.on('end', () => {
     try {
       const buf = Buffer.concat(chunks);
-      // Strip multipart headers to get raw file content
       const headerEnd = buf.indexOf('\r\n\r\n');
       const fileContent = headerEnd === -1 ? buf : buf.slice(headerEnd + 4);
       fs.writeFileSync(filePath, fileContent);
       res.json({ path: `/api/files/${bucket}/${safeName}`, error: null });
     } catch (e) {
+      console.error('[storage] write error:', e);
       res.status(500).json([{ message: e.message }]);
     }
   });
-  req.on('error', () => res.status(500).json([{ message: 'Upload failed' }]));
+  req.on('error', (e) => {
+    console.error('[storage] stream error:', e);
+    res.status(500).json([{ message: 'Upload failed' }]);
+  });
 });
 
 // Serve uploaded files
@@ -2359,10 +2362,9 @@ app.get('/login', (req, res) => res.redirect('/CRM/login'));
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
 
 // =============================================================================
-// GLOBAL ERROR HANDLER
-// =============================================================================
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  console.error('Unhandled error:', err.message || err, err.stack);
   res.status(500).json({ error: 'Internal server error' });
 });
 
