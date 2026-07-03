@@ -101,6 +101,8 @@
         opts.headers['content-type'] = 'application/json';
         console.log('[supabase-replace] fetch opts:', JSON.stringify({method: opts.method, credentials: opts.credentials, headers: opts.headers, bodyLength: opts.body ? opts.body.length : 'n/a'}));
         return _originalFetch.call(window, '/api/files/upload-json', opts).then(res => {
+          console.log('[supabase-replace] upload-json response status:', res.status, res.statusText);
+          res.clone().text().then(t => console.log('[supabase-replace] upload-json response body:', t.substring(0, 200)));
           if (res.ok) {
             return res.json().then(data => {
               return new Response(JSON.stringify({ path: data.path, error: null }), {
