@@ -19,6 +19,33 @@
 (function () {
   'use strict';
 
+  // ── GLOBAL FETCH INTERCEPTOR ────────────────────────────────────────────────
+  // Route all Supabase JS client fetch calls to our Express server with session cookies
+  const _originalFetch = window.fetch;
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input && input.url) || '';
+    const supabaseMatch = url.match(/https?:\/\/([^\/]+)\.supabase\.co(\/.*)/);
+    if (supabaseMatch) {
+      const path = supabaseMatch[2]; // e.g. /rest/v1/clients
+      const rewriteMap = {
+        '/rest/v1': '/api/client/data',
+        '/storage/v1/object/public': '/api/files/public',
+        '/storage/v1/object/upload': '/api/files/upload'
+      };
+      let mapped = rewriteMap[path];
+      if (!mapped) {
+        // Generic: /rest/v1/table → /api/client/data (for reads)
+        if (path.startsWith('/rest/v1/')) mapped = '/api/client/data';
+      }
+      if (mapped) {
+        const opts = init || {};
+        opts.credentials = 'include';
+        return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
+      }
+    }
+    return _originalFetch.apply(window, arguments);
+  };
+
   const SESSION_KEY = 'vg'; // matches the SPA's existing localStorage key
   const POLL_INTERVAL = 5000;
   const BASE = '/api';

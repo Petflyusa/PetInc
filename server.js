@@ -76,16 +76,12 @@ async function sendEmail(to, subject, text) {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// =============================================================================
-
-
-app.use(express.static(path.join(__dirname, 'public')));
-
+// Session middleware MUST be before static serving so API routes get session cookies
 app.use(session({
   secret: process.env.SESSION_SECRET || 'petinc-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 },
+  cookie: { maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' },
   store: new MySQLStore({
     host: process.env.DB_HOST || 'srv1134.hstgr.io',
     port: parseInt(process.env.DB_PORT || '3306'),
@@ -98,6 +94,9 @@ app.use(session({
     createDatabaseTable: true
   })
 }));
+
+// Static files — after session so no impact on API routes
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Admin auth middleware
 function requireAdmin(req, res, next) {
