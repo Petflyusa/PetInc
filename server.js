@@ -355,25 +355,20 @@ app.post('/api/files/upload', upload.single('file'), (req, res) => {
   res.json({ publicUrl, filename: req.file.filename, path: req.file.path });
 });
 
-// POST /api/files/upload (raw binary) — for CRM storage polyfill rewrites
-// Receives binary file body, saves to public/uploads/
-app.post('/api/files/upload-raw', (req, res) => {
-  const chunks = [];
-  req.on('data', chunk => chunks.push(chunk));
-  req.on('end', () => {
-    try {
-      const buf = Buffer.concat(chunks);
-      const ext = req.headers['x-file-ext'] || 'bin';
-      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const filePath = path.join(uploadsDir, safeName);
-      fs.writeFileSync(filePath, buf);
-      res.json({ path: `/api/files/uploads/${safeName}`, publicUrl: `/api/files/uploads/${safeName}`, error: null });
-    } catch (e) {
-      console.error('[storage-raw] write error:', e);
-      res.status(500).json({ error: e.message });
-    }
-  });
-  req.on('error', () => res.status(500).json({ error: 'Upload failed' }));
+// POST /api/files/upload-json — JSON base64 upload (for CRM storage polyfill rewrites)
+app.post('/api/files/upload-json', (req, res) => {
+  try {
+    const { bucket, filename, data: b64, ext } = req.body;
+    if (!b64) return res.status(400).json({ error: 'No data provided' });
+    const buf = Buffer.from(b64, 'base64');
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext || 'bin'}`;
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, buf);
+    res.json({ path: `/api/files/uploads/${safeName}`, publicUrl: `/api/files/uploads/${safeName}`, error: null });
+  } catch (e) {
+    console.error('[upload-json] error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // DELETE /api/files/:bucket/:filename — delete a file

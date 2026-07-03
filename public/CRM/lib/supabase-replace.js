@@ -43,27 +43,35 @@
         return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
       }
     } else if (isOurOrigin && url.includes('/storage/v1/')) {
-      // Rewrite our own domain's storage calls to our raw upload API
+      // Rewrite our own domain's storage calls to JSON-based upload
       // Pattern: /storage/v1/object/{bucket}/{filename} or /storage/v1/object/upload/{bucket}/{filename}
       const storageMatch = url.match(/\/storage\/v1\/object\/(?:upload\/)?([^/]+)\/(.+)/);
       if (storageMatch) {
         const [, bucket, filename] = storageMatch;
-        const ext = filename.split('.').pop() || 'bin';
         const opts = init || {};
         opts.method = 'POST';
         opts.credentials = 'include';
+        // Convert body to base64 JSON for reliable transport
+        let body = opts.body;
+        let binaryData = null;
+        if (body) {
+          if (typeof body === 'string') {
+            binaryData = btoa(body);
+          } else if (body instanceof ArrayBuffer) {
+            binaryData = btoa(String.fromCharCode(...new Uint8Array(body)));
+          } else if (body instanceof Uint8Array) {
+            binaryData = btoa(String.fromCharCode(...body));
+          }
+        }
+        const payload = { bucket, filename, data: binaryData, ext: filename.split('.').pop() || 'bin' };
+        opts.body = JSON.stringify(payload);
         opts.headers = opts.headers || {};
-        opts.headers['x-file-ext'] = ext;
-        opts.headers['x-file-name'] = filename;
-        // body is the binary file content - keep it in the request
-        return _originalFetch.call(window, '/api/files/upload-raw', opts).then(res => {
-          // If successful, return a mock response with the path
+        opts.headers['content-type'] = 'application/json';
+        return _originalFetch.call(window, '/api/files/upload-json', opts).then(res => {
           if (res.ok) {
             return res.json().then(data => {
-              // Return a mock Response that matches what Supabase storage expects
               return new Response(JSON.stringify({ path: data.path, error: null }), {
-                status: 200,
-                statusText: 'OK',
+                status: 200, statusText: 'OK',
                 headers: { 'content-type': 'application/json' }
               });
             });
