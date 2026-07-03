@@ -1,252 +1,17 @@
-/**
- * supabase-replace.js — Replaces dead Supabase JS client calls with Express sessions.
- *
- * Loaded BEFORE the SPA bundle in public/CRM/index.html
- * Installs a `bi` global that the minified bundle already calls.
- *
- * Maps:
- *   bi.auth.signInWithPassword() → POST /api/client/login
- *   bi.auth.logOut()            → POST /api/auth/logout
- *   bi.auth.getSession()        → GET  /api/client/data
- *   bi.auth.onAuthStateChange() → polls GET /api/client/data every 5s
- *   bi.from('clients').select() → GET  /api/client/data
- *   bi.from('pets').select()    → GET  /api/client/data (included)
- *   bi.from('documents').select()→ GET  /api/client/data (included)
- *   bi.from('journeys').select()→ GET  /api/client/data (included)
- *   bi.from('quotes').select()   → GET  /api/client/data (included)
- *   bi.from('X').insert/upsert/update/delete → POST|PUT|DELETE /api/client/X
- */
-(function () {
+(function() {
   'use strict';
 
-  // ── GLOBAL FETCH INTERCEPTOR ────────────────────────────────────────────────
-  // Route all Supabase JS client fetch calls to our Express server with session cookies
-  const _originalFetch = window.fetch;
-  window.fetch = async function (input, init) {
-    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input && input.url) || '';
-    const supabaseMatch = url.match(/https?:\/\/([^/]+)\.supabase\.co(\/.*)/);
-    const isOurOrigin = url.startsWith('https://petflyinc.com') || url.startsWith('http://petflyinc.com');
-    if (supabaseMatch) {
-      const path = supabaseMatch[2];
-      const rewriteMap = {
-        '/rest/v1': '/api/client/data',
-        '/storage/v1/object/public': '/api/files/public',
-        '/storage/v1/object/upload': '/api/files/upload'
-      };
-      let mapped = rewriteMap[path];
-      if (!mapped) {
-        if (path.startsWith('/rest/v1/')) mapped = '/api/client/data';
-      }
-      if (mapped) {
-        const opts = init || {};
-        opts.credentials = 'include';
-        return _originalFetch.call(window, mapped + (url.includes('?') ? '?' + url.split('?')[1] : ''), opts);
-      }
-    } else if (isOurOrigin && url.includes('/storage/v1/')) {
-      console.log('[supabase-replace] storage URL intercepted:', url);
-      // Pattern: /storage/v1/object/{bucket}/{filename} or /storage/v1/object/upload/{bucket}/{filename}
-      const storageMatch = url.match(/\/storage\/v1\/object\/(?:upload\/)?([^/]+)\/(.+)/);
-      if (storageMatch) {
-        const [, bucket, filename] = storageMatch;
-        const opts = init || {};
-        opts.method = 'POST';
-        opts.credentials = 'include';
-        // Convert body to base64 JSON for reliable transport
-        let body = opts.body;
-        let binaryData = null;
-        let fileName = filename;
-        console.log('[supabase-replace] body type:', Object.prototype.toString.call(body), 'isFormData:', body instanceof FormData, 'isFile:', body instanceof File, 'isBlob:', body instanceof Blob, 'bodyStr:', typeof body === 'string' ? body.substring(0, 100) : 'n/a');
-        if (body instanceof FormData) {
-          // Extract the file from FormData and base64-encode it
-          const entries = [...body.entries()];
-          for (const [key, value] of entries) {
-            console.log('[supabase-replace] FormData entry:', key, Object.prototype.toString.call(value), 'instanceof File:', value instanceof File, 'instanceof Blob:', value instanceof Blob, 'value.name:', value.name);
-            if (value instanceof File || value instanceof Blob) {
-              fileName = value.name; // use the File object's name, not the FormData key (which is empty string)
-              try {
-                const arrayBuffer = await value.arrayBuffer();
-                const bytes = new Uint8Array(arrayBuffer);
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                binaryData = btoa(binary);
-                console.log('[supabase-replace] extracted binaryData length:', binaryData.length, 'preview:', binaryData.substring(0, 30));
-              } catch (e) {
-                console.error('[supabase-replace] arrayBuffer extraction failed:', e);
-              }
-              break;
-            }
-          }
-        } else if (typeof body === 'string') {
-          binaryData = btoa(body);
-        } else if (body instanceof ArrayBuffer) {
-          const bytes = new Uint8Array(body);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          binaryData = btoa(binary);
-        } else if (body instanceof Uint8Array) {
-          let binary = '';
-          for (let i = 0; i < body.length; i++) binary += String.fromCharCode(body[i]);
-          binaryData = btoa(binary);
-        }
-        if (binaryData === null) {
-          console.error('[supabase-replace] storage: could not extract binary from body type:', typeof body, Object.prototype.toString.call(body));
-          console.error('[supabase-replace] body keys:', body && typeof body === 'object' ? Object.keys(body).join(', ') : 'none');
-          return new Response(JSON.stringify({ error: 'No data provided' }), { status: 400, headers: { 'content-type': 'application/json' } });
-        }
-        const payload = { bucket, filename: fileName, data: binaryData, ext: fileName.split('.').pop() || 'bin' };
-        console.log('[supabase-replace] uploading payload filename:', payload.filename, 'data length:', payload.data ? payload.data.length : 'null', 'ext:', payload.ext);
-        console.log('[supabase-replace] data preview:', payload.data ? payload.data.substring(0, 50) : 'null');
-        opts.body = JSON.stringify(payload);
-        opts.headers = opts.headers || {};
-        opts.headers['content-type'] = 'application/json';
-        console.log('[supabase-replace] fetch opts:', JSON.stringify({method: opts.method, credentials: opts.credentials, headers: opts.headers, bodyLength: opts.body ? opts.body.length : 'n/a'}));
-        return _originalFetch.call(window, '/api/files/upload-json', opts).then(res => {
-          console.log('[supabase-replace] upload-json response status:', res.status, res.statusText);
-          res.clone().text().then(t => console.log('[supabase-replace] upload-json response body:', t.substring(0, 200)));
-          if (res.ok) {
-            return res.json().then(data => {
-              return new Response(JSON.stringify({ path: data.path, error: null }), {
-                status: 200, statusText: 'OK',
-                headers: { 'content-type': 'application/json' }
-              });
-            });
-          }
-          return res;
-        });
-      }
-    }
-    return _originalFetch.apply(window, arguments);
-  };
+  const API_BASE = '';
 
-  const SESSION_KEY = 'vg'; // matches the SPA's existing localStorage key
-  const POLL_INTERVAL = 5000;
-  const MAX_POLLS = 3; // hard cap to prevent flooding after 401
-  const BASE = '/api';
-
-  // ── Auth state ──────────────────────────────────────────────────────────────
-  let _session = null;
-  let _user = null;
-  let _listeners = [];
-  let _pollTimer = null;
-  let _polling = false;
-  let _pollCount = 0;
-
-  function notifyListeners(event, session) {
-    _listeners.forEach(function (fn) {
-      try { fn(event, session); } catch (e) { console.error('[supabase-replace] auth listener error', e); }
-    });
-  }
-
-  function startPolling() {
-    if (_polling) return;
-    _polling = true;
-    _pollTimer = setInterval(async function () {
-      _pollCount++;
-      if (_pollCount > MAX_POLLS) {
-        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-        _polling = false;
-        return;
-      }
-      try {
-        const res = await fetch(BASE + '/client/data', { credentials: 'include' });
-        if (res.ok) {
-          _pollCount = 0; // reset on success
-          const data = await res.json();
-          const newUser = (data && data.client) ? data.client : null;
-          if (JSON.stringify(newUser) !== JSON.stringify(_user)) {
-            _user = newUser;
-            _session = _user ? { user: _user } : null;
-            notifyListeners(_user ? 'SIGNED_IN' : 'SIGNED_OUT', _session);
-          }
-        } else {
-          // 401 — clear session and stop polling to prevent flood
-          if (_user !== null || _session !== null) {
-            _user = null;
-            _session = null;
-            notifyListeners('SIGNED_OUT', null);
-          }
-          if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-          _polling = false;
-        }
-      } catch (e) { /* network error, ignore */ }
-    }, POLL_INTERVAL);
-  }
-
-  // ── Auth mock ────────────────────────────────────────────────────────────────
-  class MockSupabaseAuth {
-    async signInWithPassword(_a) {
-      var email = _a.email, password = _a.password;
-      try {
-        var res = await fetch(BASE + '/client/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ username: email, password: password })
-        });
-        var data = await res.json();
-        if (!res.ok) return { data: null, error: { message: data.error || 'Invalid credentials' } };
-        _user = data;
-        _session = { user: _user };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(_user));
-        notifyListeners('SIGNED_IN', _session);
-        return { data: { session: _session, user: _user }, error: null };
-      } catch (e) {
-        return { data: null, error: { message: e.message } };
-      }
-    }
-
-    async logOut() {
-      try { await fetch(BASE + '/auth/logout', { method: 'POST', credentials: 'include' }); } catch (e) { /* ignore */ }
-      _user = null;
-      _session = null;
-      localStorage.removeItem(SESSION_KEY);
-      notifyListeners('SIGNED_OUT', null);
-      return { error: null };
-    }
-
-    async getSession() {
-      try {
-        var res = await fetch(BASE + '/client/data', { credentials: 'include' });
-        if (!res.ok) { _user = null; _session = null; return { data: { session: null, user: null }, error: null }; }
-        var data = await res.json();
-        if (data && data.client) {
-          _user = data.client;
-          _session = { user: _user };
-        } else {
-          _user = null; _session = null;
-        }
-        return { data: { session: _session, user: _user }, error: null };
-      } catch (e) {
-        return { data: null, error: { message: e.message } };
-      }
-    }
-
-    async getUser() { return this.getSession(); }
-
-    onAuthStateChange(callback) {
-      _listeners.push(callback);
-      setTimeout(function () { callback(_session ? 'INITIAL_SESSION' : 'SIGNED_OUT', _session); }, 0);
-      return { data: { subscription: { unsubscribe: function () { _listeners = _listeners.filter(function (fn) { return fn !== callback; }); } } } };
-    }
-  }
-
-  // ── QueryBuilder mock ────────────────────────────────────────────────────────
-  var METHOD_MAP = { insert: 'POST', upsert: 'POST', update: 'POST', delete: 'DELETE' };
-  var ENDPOINT_MAP = {
-    clients:   { read: BASE + '/client/data',    write: BASE + '/client/clients' },
-    pets:     { read: BASE + '/client/data',    write: BASE + '/client/pets' },
-    documents:{ read: BASE + '/client/data',    write: BASE + '/client/documents' },
-    journeys: { read: BASE + '/client/data',    write: BASE + '/client/journeys' },
-    quotes:   { read: BASE + '/client/data',    write: BASE + '/client/quotes' }
-  };
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function toSnakeCase(obj) {
     if (obj === null || obj === undefined) return obj;
     if (typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) return obj.map(toSnakeCase);
     var result = {};
-    Object.keys(obj).forEach(function (k) {
-      var sn = k.replace(/[A-Z]/g, function (m) { return '_' + m.toLowerCase(); });
+    Object.keys(obj).forEach(function(k) {
+      var sn = k.replace(/[A-Z]/g, function(m) { return '_' + m.toLowerCase(); });
       result[sn] = toSnakeCase(obj[k]);
     });
     return result;
@@ -257,139 +22,396 @@
     if (typeof obj !== 'object') return obj;
     if (Array.isArray(obj)) return obj.map(fromSnakeCase);
     var result = {};
-    Object.keys(obj).forEach(function (k) {
-      var cc = k.replace(/_([a-z])/g, function (m) { return m[1].toUpperCase(); });
+    Object.keys(obj).forEach(function(k) {
+      var cc = k.replace(/_([a-z])/g, function(m) { return m[1].toUpperCase(); });
       result[cc] = fromSnakeCase(obj[k]);
     });
     return result;
   }
 
-  function MockQueryBuilder(table) {
-    this._table = table;
-    this._filters = [];
-    this._single = false;
-    this._method = 'GET';
-    this._body = null;
+  // Build URL with filter params
+  // Special case: .eq('id', value) on a GET → /api/crm/table/id/value
+  function buildUrl(table, method, filters, offset, limit, orderCol, orderAsc) {
+    var url = API_BASE + '/api/crm/' + table;
+
+    // For GET with a single id filter, use /api/crm/table/id/value pattern
+    if (method === 'GET' && filters.length === 1 && filters[0].op === '=') {
+      var f = filters[0];
+      if (f.col === 'id') {
+        url = API_BASE + '/api/crm/' + table + '/' + encodeURIComponent(f.val);
+      }
+    } else {
+      // Append filters as query params
+      filters.forEach(function(f) {
+        if (f.op === '=') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '=' + encodeURIComponent(f.val);
+        } else if (f.op === '!=') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '!=' + encodeURIComponent(f.val);
+        } else if (f.op === 'like') {
+          var v = f.val.replace(/%/g, '');
+          url += (url.includes('?') ? '&' : '?') + f.col + '=' + encodeURIComponent(v);
+        } else if (f.op === '>') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '_gt=' + encodeURIComponent(f.val);
+        } else if (f.op === '<') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '_lt=' + encodeURIComponent(f.val);
+        } else if (f.op === '>=') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '_gte=' + encodeURIComponent(f.val);
+        } else if (f.op === '<=') {
+          url += (url.includes('?') ? '&' : '?') + f.col + '_lte=' + encodeURIComponent(f.val);
+        }
+      });
+    }
+
+    // Pagination
+    if (offset !== undefined && limit !== undefined) {
+      url += (url.includes('?') ? '&' : '?') + 'offset=' + offset + '&limit=' + limit;
+    } else if (limit !== undefined) {
+      url += (url.includes('?') ? '&' : '?') + 'limit=' + limit;
+    }
+
+    // Ordering
+    if (orderCol) {
+      url += (url.includes('?') ? '&' : '?') + 'order=' + orderCol + (orderAsc ? '' : '&desc=1');
+    }
+
+    return url;
   }
 
-  MockQueryBuilder.prototype.select = function (cols) {
-    this._selectCols = cols || '*';
+  // ── Chainable QueryBuilder ───────────────────────────────────────────────────
+
+  function QueryBuilder(table) {
+    this._table = table;
+    this._method = 'GET';
+    this._data = null;
+    this._filters = [];
+    this._cols = '*';
+    this._offset = undefined;
+    this._limit = undefined;
+    this._orderCol = undefined;
+    this._orderAsc = true;
+    this._single = false;
+  }
+
+  QueryBuilder.prototype.select = function(cols) {
+    this._cols = cols || '*';
     return this;
   };
 
-  MockQueryBuilder.prototype.eq = function (col, val) {
-    this._filters.push(col + '=' + encodeURIComponent(val));
-    return this;
-  };
-
-  MockQueryBuilder.prototype.neq = function () { return this; };
-  MockQueryBuilder.prototype.gt = function () { return this; };
-  MockQueryBuilder.prototype.lt = function () { return this; };
-  MockQueryBuilder.prototype.is_ = function () { return this; };
-  MockQueryBuilder.prototype.order = function () { return this; };
-  MockQueryBuilder.prototype.limit = function () { return this; };
-
-  MockQueryBuilder.prototype.single = function () {
-    this._single = true;
-    return this;
-  };
-
-  MockQueryBuilder.prototype.insert = function (row) {
+  QueryBuilder.prototype.insert = function(data) {
     this._method = 'POST';
-    this._body = Array.isArray(row) ? row.map(toSnakeCase) : toSnakeCase(row);
+    this._data = Array.isArray(data) ? data.map(toSnakeCase) : toSnakeCase(data);
     return this;
   };
 
-  MockQueryBuilder.prototype.upsert = function (row) {
+  QueryBuilder.prototype.upsert = function(data) {
     this._method = 'POST';
-    this._body = Array.isArray(row) ? row.map(toSnakeCase) : toSnakeCase(row);
+    this._data = Array.isArray(data) ? data.map(toSnakeCase) : toSnakeCase(data);
     return this;
   };
 
-  MockQueryBuilder.prototype.update = function (row) {
-    this._method = 'POST';
-    this._body = toSnakeCase(row);
+  QueryBuilder.prototype.update = function(data) {
+    this._method = 'PUT';
+    this._data = toSnakeCase(data);
     return this;
   };
 
-  MockQueryBuilder.prototype.delete = function () {
+  QueryBuilder.prototype.delete = function() {
     this._method = 'DELETE';
     return this;
   };
 
-  MockQueryBuilder.prototype.then = function (resolve, reject) {
+  // Filters
+  QueryBuilder.prototype.eq = function(col, val) {
+    this._filters.push({ col: col, op: '=', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.neq = function(col, val) {
+    this._filters.push({ col: col, op: '!=', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.gt = function(col, val) {
+    this._filters.push({ col: col, op: '>', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.lt = function(col, val) {
+    this._filters.push({ col: col, op: '<', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.gte = function(col, val) {
+    this._filters.push({ col: col, op: '>=', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.lte = function(col, val) {
+    this._filters.push({ col: col, op: '<=', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.like = function(col, val) {
+    this._filters.push({ col: col, op: 'like', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.ilike = function(col, val) {
+    // Treat ilike the same as like for simplicity
+    this._filters.push({ col: col, op: 'like', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.is = function(col, val) {
+    // Handle .is('col', null) etc.
+    this._filters.push({ col: col, op: 'is', val: val });
+    return this;
+  };
+  QueryBuilder.prototype.in = function(col, val) {
+    // Handle .in('col', [1,2,3])
+    var vals = Array.isArray(val) ? val.join(',') : val;
+    this._filters.push({ col: col, op: 'in', val: vals });
+    return this;
+  };
+
+  // Pagination
+  QueryBuilder.prototype.range = function(offset, limit) {
+    this._offset = offset;
+    this._limit = limit;
+    return this;
+  };
+  QueryBuilder.prototype.limit = function(n) {
+    this._limit = n;
+    return this;
+  };
+  QueryBuilder.prototype.offset = function(n) {
+    this._offset = n;
+    return this;
+  };
+
+  // Ordering
+  QueryBuilder.prototype.order = function(col, opts) {
+    this._orderCol = col;
+    this._orderAsc = (opts && opts.ascending !== undefined) ? opts.ascending : true;
+    return this;
+  };
+
+  // Single result
+  QueryBuilder.prototype.single = function() {
+    this._single = true;
+    return this;
+  };
+
+  // Maybe single result (returns null instead of error)
+  QueryBuilder.prototype.maybeSingle = function() {
+    this._single = true;
+    return this;
+  };
+
+  // Abort controller for cancellation support
+  QueryBuilder.prototype.abort = function() {
+    // no-op for compatibility
+    return this;
+  };
+
+  // Promise-based execution
+  QueryBuilder.prototype.then = function(resolve, reject) {
     var self = this;
-    var endpoint = ENDPOINT_MAP[this._table] || { read: BASE + '/' + this._table, write: BASE + '/' + this._table };
-    var url = endpoint.read;
+    var url = buildUrl(this._table, this._method, this._filters, this._offset, this._limit, this._orderCol, this._orderAsc);
 
-    if (this._method !== 'GET' && this._method !== 'DELETE') {
-      url = endpoint.write;
+    var fetchOpts = {
+      method: this._method,
+      credentials: 'include',
+      headers: {}
+    };
+
+    if ((this._method === 'POST' || this._method === 'PUT') && this._data !== null) {
+      fetchOpts.headers['Content-Type'] = 'application/json';
+      fetchOpts.body = JSON.stringify(this._data);
     }
 
-    if (this._filters.length > 0) {
-      url += '?' + this._filters.join('&');
-    }
-
-    var fetchOpts = { method: this._method, credentials: 'include' };
-    if (this._body && (this._method === 'POST' || this._method === 'PUT')) {
-      fetchOpts.headers = { 'Content-Type': 'application/json' };
-      fetchOpts.body = JSON.stringify(this._body);
-    }
-
-    fetch(url, fetchOpts).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok) return resolve({ data: null, error: { message: data.error || 'Request failed' } });
-        // GET /api/client/data returns {client, pets, services, quotes, documents, messages}
-        // Wrap in array to match Supabase's expected array response
+    fetch(url, fetchOpts).then(function(res) {
+      return res.json().then(function(data) {
+        if (!res.ok) {
+          return resolve({ data: null, error: { message: data.error || 'Request failed', status: res.status } });
+        }
+        // Normalize response: if our API returns raw array, wrap it
         if (self._method === 'GET') {
-          var tableKey = self._table === 'clients' ? 'client' :
-                         self._table === 'pets' ? 'pets' :
-                         self._table === 'documents' ? 'documents' :
-                         self._table === 'journeys' ? 'services' :
-                         self._table === 'quotes' ? 'quotes' : null;
-          var arr = (tableKey && data && Array.isArray(data[tableKey])) ? data[tableKey] :
-                    (data && Array.isArray(data)) ? data : [];
-          // apply .eq() filters client-side
-          if (self._filters.length > 0) {
-            arr = arr.filter(function (row) {
-              return self._filters.every(function (f) {
-                var parts = f.split('=');
-                var k = parts[0];
-                var v = decodeURIComponent(parts[1]);
-                return String(fromSnakeCase(row)[k]) === v;
-              });
-            });
-          }
+          var arr = Array.isArray(data) ? data : (data && Array.isArray(data.data)) ? data.data : [];
+          // Convert snake_case to camelCase
+          arr = arr.map(fromSnakeCase);
           resolve({ data: self._single ? (arr[0] || null) : arr, error: null });
         } else {
-          resolve({ data: data, error: null });
+          resolve({ data: fromSnakeCase(data), error: null });
         }
       });
-    }).catch(function (e) {
+    }).catch(function(e) {
       resolve({ data: null, error: { message: e.message } });
     });
   };
 
-  // ── Install global `bi` ───────────────────────────────────────────────────────
-  window.bi = {
-    auth: new MockSupabaseAuth(),
-    from: function (table) { return new MockQueryBuilder(table); },
+  QueryBuilder.prototype.catch = function(reject) {
+    return this.then(function(x) { return x; }, reject);
+  };
+
+  QueryBuilder.prototype.finally = function(fn) {
+    return this.then(function(x) { fn(); return x; }, function(x) { fn(); throw x; });
+  };
+
+  QueryBuilder.prototype.subscribe = function() { return { unsubscribe: function() {} }; };
+
+  // ── Storage Bucket ──────────────────────────────────────────────────────────
+
+  function StorageBucket(bucketName) {
+    this._bucket = bucketName;
+  }
+
+  StorageBucket.prototype.upload = function(path, file) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var formData = new FormData();
+      formData.append('file', file);
+      fetch('/api/files/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      }).then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok) {
+            resolve({ data: null, error: { message: data.error || 'Upload failed' } });
+          } else {
+            resolve({ data: { path: data.url || data.path || '/' + path }, error: null });
+          }
+        });
+      }).catch(function(e) {
+        resolve({ data: null, error: { message: e.message } });
+      });
+    });
+  };
+
+  StorageBucket.prototype.download = function(path) {
+    return Promise.resolve({ data: { path: path }, error: null });
+  };
+
+  StorageBucket.prototype.remove = function(path) {
+    return Promise.resolve({ data: null, error: null });
+  };
+
+  StorageBucket.prototype.list = function() {
+    return Promise.resolve({ data: [], error: null });
+  };
+
+  // ── Auth ────────────────────────────────────────────────────────────────────
+
+  var _session = null;
+  var _user = null;
+  var _listeners = [];
+
+  function notifyListeners(event, session) {
+    _listeners.forEach(function(fn) {
+      try { fn(event, session); } catch (e) {}
+    });
+  }
+
+  window.supabase = {
+    from: function(table) {
+      return new QueryBuilder(table);
+    },
+
     storage: {
-      from: function () {
+      from: function(bucket) {
+        return new StorageBucket(bucket);
+      }
+    },
+
+    auth: {
+      signInWithPassword: async function(credentials) {
+        try {
+          var res = await fetch('/api/crm/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(credentials)
+          });
+          var data = await res.json();
+          if (!res.ok) return { data: null, error: { message: data.error || 'Login failed' } };
+          _user = fromSnakeCase(data.user || data);
+          _session = { user: _user };
+          return { data: { session: _session, user: _user }, error: null };
+        } catch (e) {
+          return { data: null, error: { message: e.message } };
+        }
+      },
+
+      signUp: async function(credentials) {
+        try {
+          var res = await fetch('/api/crm/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(credentials)
+          });
+          var data = await res.json();
+          if (!res.ok) return { data: null, error: { message: data.error || 'Registration failed' } };
+          _user = fromSnakeCase(data.user || data);
+          _session = { user: _user };
+          return { data: { session: _session, user: _user }, error: null };
+        } catch (e) {
+          return { data: null, error: { message: e.message } };
+        }
+      },
+
+      signOut: async function() {
+        try { await fetch('/api/crm/auth/logout', { method: 'POST', credentials: 'include' }); } catch (e) {}
+        _user = null;
+        _session = null;
+        notifyListeners('SIGNED_OUT', null);
+        return { error: null };
+      },
+
+      session: async function() {
+        return { data: { session: _session }, error: null };
+      },
+
+      getSession: async function() {
+        return { data: { session: _session }, error: null };
+      },
+
+      getUser: async function() {
+        return { data: { user: _user }, error: null };
+      },
+
+      onAuthStateChange: function(callback) {
+        _listeners.push(callback);
+        setTimeout(function() { callback(_session ? 'INITIAL_SESSION' : 'SIGNED_OUT', _session); }, 0);
         return {
-          upload: function () { return Promise.resolve({ data: { path: '' }, error: null }); },
-          download: function () { return Promise.reject('not implemented'); }
+          data: {
+            subscription: {
+              unsubscribe: function() {
+                _listeners = _listeners.filter(function(fn) { return fn !== callback; });
+              }
+            }
+          }
         };
       }
+    },
+
+    removeChannel: function() {},
+    channel: function() {
+      return {
+        on: function() { return this; },
+        subscribe: function() { return this; },
+        unsubscribe: function() {}
+      };
     }
   };
 
-  // Restore session from localStorage
-  var stored = localStorage.getItem(SESSION_KEY);
-  if (stored) {
-    try { _user = JSON.parse(stored); _session = _user ? { user: _user } : null; } catch (e) {}
-  }
+  // ── Also install `bi` for backward compat ──────────────────────────────────
+  window.bi = {
+    auth: {
+      signInWithPassword: window.supabase.auth.signInWithPassword,
+      signUp: window.supabase.auth.signUp,
+      signOut: window.supabase.auth.signOut,
+      getSession: window.supabase.auth.getSession,
+      getUser: window.supabase.auth.getUser,
+      onAuthStateChange: window.supabase.auth.onAuthStateChange,
+      logOut: window.supabase.auth.signOut
+    },
+    from: window.supabase.from,
+    storage: window.supabase.storage
+  };
 
-  startPolling();
-  console.log('[supabase-replace] bi global installed — Supabase calls routed to Express');
+  console.log('[supabase-replace] window.supabase installed — routing to /api/crm/*');
 })();
