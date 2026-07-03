@@ -525,8 +525,9 @@
     }
   };
 
-  // ── Install `ye` and `bi` for backward compat ─────────────────────────────────
+  // ── Install `ye`, `bi`, AND `Ye` (uppercase) for backward compat ─────────────
   window.ye = window.supabase;
+  window.Ye = window.supabase;   // ← Uppercase Ye (used by CRM bundle's Ye.syncWithSupabase)
   window.bi = {
     auth: {
       signInWithPassword: window.supabase.auth.signInWithPassword,
@@ -541,5 +542,14 @@
     storage: window.supabase.storage
   };
 
-  console.log('[supabase-replace] window.supabase, window.ye, window.bi installed — routing to /api/crm/*');
+  // Ye.syncWithSupabase() — called by the CRM bundle on every mount.
+  // It must fire 'supabase_sync_complete' on window so the React app re-renders.
+  // The polyfill already intercepts all Supabase calls at fetch level, so sync is instant.
+  window.supabase.syncWithSupabase = function() {
+    // Fire the event that the CRM app listens for (EM component in bundle)
+    var evt = new Event('supabase_sync_complete');
+    window.dispatchEvent(evt);
+  };
+
+  console.log('[supabase-replace] window.supabase, window.ye, window.Ye, window.bi installed — routing to /api/crm/*');
 })();
