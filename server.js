@@ -111,6 +111,11 @@ function requireClient(req, res, next) {
   if (req.session && req.session.clientId) {
     return next();
   }
+  // For session-poll requests from the client portal, return 200 with null
+  // instead of 401 to prevent polling flood (client retries on 401)
+  if (req.path === '/api/client/data' && req.method === 'GET') {
+    return res.status(200).json({ client: null });
+  }
   return res.status(401).json({ error: 'Not logged in' });
 }
 
