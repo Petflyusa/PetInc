@@ -343,8 +343,12 @@ app.post('/api/broadcast', (req, res) => {
 app.get('/api/files/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeBucket = path.basename(bucket);
-  // Try server_root/uploads/ first (existing multer uploads), then public/uploads/ (our JSON uploads)
-  let filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  // Files saved by /api/files/upload-json land directly in UPLOAD_DIR/filename
+  // Files from multer land in UPLOAD_DIR/bucket/filename
+  let filePath = path.join(UPLOAD_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  }
   if (!fs.existsSync(filePath)) {
     filePath = path.join(__dirname, 'public', 'uploads', filename);
   }
@@ -2815,7 +2819,11 @@ app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
 // Serve uploaded files
 app.get('/storage/v1/object/public/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
-  const filePath = path.join(UPLOAD_DIR, filename);
+  // Try UPLOAD_DIR/filename first (upload-json), then UPLOAD_DIR/bucket/filename (multer)
+  let filePath = path.join(UPLOAD_DIR, filename);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(UPLOAD_DIR, bucket, filename);
+  }
   if (fs.existsSync(filePath)) return res.sendFile(filePath);
   res.status(404).json([{ message: 'File not found' }]);
 });
