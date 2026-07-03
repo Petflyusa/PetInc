@@ -63,12 +63,16 @@
             console.log('[supabase-replace] FormData entry:', key, Object.prototype.toString.call(value), 'instanceof File:', value instanceof File, 'instanceof Blob:', value instanceof Blob, 'value.name:', value.name);
             if (value instanceof File || value instanceof Blob) {
               fileName = value.name; // use the File object's name, not the FormData key (which is empty string)
-              const arrayBuffer = await value.arrayBuffer();
-              const bytes = new Uint8Array(arrayBuffer);
-              let binary = '';
-              for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-              binaryData = btoa(binary);
-              console.log('[supabase-replace] extracted binaryData length:', binaryData.length, 'preview:', binaryData.substring(0, 30));
+              try {
+                const arrayBuffer = await value.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                binaryData = btoa(binary);
+                console.log('[supabase-replace] extracted binaryData length:', binaryData.length, 'preview:', binaryData.substring(0, 30));
+              } catch (e) {
+                console.error('[supabase-replace] arrayBuffer extraction failed:', e);
+              }
               break;
             }
           }
