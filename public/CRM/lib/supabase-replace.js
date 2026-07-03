@@ -54,6 +54,7 @@
   let _session = null;
   let _user = null;
   let _listeners = [];
+  let _pollTimer = null;
   let _polling = false;
 
   function notifyListeners(event, session) {
@@ -65,7 +66,7 @@
   function startPolling() {
     if (_polling) return;
     _polling = true;
-    setInterval(async function () {
+    _pollTimer = setInterval(async function () {
       try {
         const res = await fetch(BASE + '/client/data', { credentials: 'include' });
         if (res.ok) {
@@ -76,10 +77,15 @@
             _session = _user ? { user: _user } : null;
             notifyListeners(_user ? 'SIGNED_IN' : 'SIGNED_OUT', _session);
           }
-        } else if (_user !== null) {
-          _user = null;
-          _session = null;
-          notifyListeners('SIGNED_OUT', null);
+        } else {
+          // 401 — clear session and stop polling to prevent flood
+          if (_user !== null || _session !== null) {
+            _user = null;
+            _session = null;
+            notifyListeners('SIGNED_OUT', null);
+          }
+          if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+          _polling = false;
         }
       } catch (e) { /* network error, ignore */ }
     }, POLL_INTERVAL);

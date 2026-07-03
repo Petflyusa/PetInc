@@ -1390,6 +1390,29 @@ app.post('/api/client/login', async (req, res) => {
   }
 });
 
+// REST-compatible routes — bundle calls /rest/v1/{table} directly
+// These receive session via cookie (session middleware runs first)
+app.get('/rest/v1/:table', async (req, res) => {
+  const { table } = req.params;
+  const tableMap = {
+    clients: 'clients', pets: 'client_pets',
+    documents: 'client_documents', journeys: 'client_journeys', quotes: 'quotes'
+  };
+  const col = tableMap[table];
+  if (!col || !req.session.clientId) {
+    return res.status(401).json([{ message: 'Unauthorized' }]);
+  }
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM ${col} WHERE client_id = ? ORDER BY id DESC`,
+      [req.session.clientId]
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json([{ message: e.message }]);
+  }
+});
+
 // POST /api/auth/logout — destroy session (maps to bi.auth.logOut())
 app.post('/api/auth/logout', (req, res) => {
   if (req.session) {
