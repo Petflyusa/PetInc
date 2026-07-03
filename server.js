@@ -337,10 +337,15 @@ app.post('/api/broadcast', (req, res) => {
 // =============================================================================
 
 // GET /api/files/:bucket/:filename — serve uploaded files (public read)
+// Also handles /api/files/uploads/:filename (our upload path)
 app.get('/api/files/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeBucket = path.basename(bucket);
-  const filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  // Try server_root/uploads/ first (existing multer uploads), then public/uploads/ (our JSON uploads)
+  let filePath = path.join(UPLOAD_DIR, safeBucket, filename);
+  if (!fs.existsSync(filePath)) {
+    filePath = path.join(__dirname, 'public', 'uploads', filename);
+  }
   if (fs.existsSync(filePath)) {
     res.sendFile(filePath);
   } else {
