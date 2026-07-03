@@ -2740,6 +2740,83 @@ app.get('/storage/v1/object/public/:bucket/:filename', (req, res) => {
 app.get('/login', (req, res) => res.redirect('/CRM/login'));
 
 // =============================================================================
+// ADMIN CRM SEEDING (bulk data migration)
+// =============================================================================
+
+// POST /api/admin/seed-crm — bulk seed CRM data from JSON
+// Body: { clients: [...], pets: [...], documents: [...], quotes: [...], journeys: [...] }
+app.post('/api/admin/seed-crm', requireAdmin, async (req, res) => {
+  const { clients = [], pets = [], documents = [], quotes = [], journeys = [] } = req.body;
+  const results = { clients: 0, pets: 0, documents: 0, quotes: 0, journeys: 0, errors: [] };
+
+  try {
+    // Seed clients
+    for (const c of clients) {
+      try {
+        const detailsStr = c.details ? JSON.stringify(c.details) : null;
+        await crmPool.query(
+          'INSERT INTO crm_clients (name,initials,location,address,phone,email,status,password) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=name',
+          [c.name, c.initials||null, c.location||null, c.address||null, c.phone||null, c.email, c.status||'active', c.password||null]
+        );
+        results.clients++;
+      } catch (e) { results.errors.push(`client ${c.email}: ${e.message}`); }
+    }
+
+    // Seed pets
+    for (const p of pets) {
+      try {
+        const detailsStr = p.details ? JSON.stringify(p.details) : null;
+        await crmPool.query(
+          'INSERT INTO crm_pets (client_id,name,breed,type,origin,destination,image,status,status_color,details) VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=name',
+          [p.client_id, p.name, p.breed||null, p.type||null, p.origin||null, p.destination||null, p.image||null, p.status||null, p.status_color||null, detailsStr]
+        );
+        results.pets++;
+      } catch (e) { results.errors.push(`pet ${p.name}: ${e.message}`); }
+    }
+
+    // Seed documents
+    for (const d of documents) {
+      try {
+        await crmPool.query(
+          'INSERT INTO crm_documents (client_id,pet_id,name,type,expiry_date,status,icon,file_url) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=name',
+          [d.client_id, d.pet_id||null, d.name, d.type||null, d.expiry_date||null, d.status||null, d.icon||null, d.file_url||null]
+        );
+        results.documents++;
+      } catch (e) { results.errors.push(`document ${d.name}: ${e.message}`); }
+    }
+
+    // Seed quotes
+    for (const q of quotes) {
+      try {
+        const petQuotesStr = q.pet_quotes ? JSON.stringify(q.pet_quotes) : null;
+        await crmPool.query(
+          'INSERT INTO crm_quotes (id,client_id,ref,route,status,pet_quotes) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE route=route',
+          [q.id, q.client_id, q.ref||null, q.route||null, q.status||'Awaiting Approval', petQuotesStr]
+        );
+        results.quotes++;
+      } catch (e) { results.errors.push(`quote ${q.id}: ${e.message}`); }
+    }
+
+    // Seed journeys
+    for (const j of journeys) {
+      try {
+        const stagesStr = j.stages ? JSON.stringify(j.stages) : null;
+        await crmPool.query(
+          'INSERT INTO crm_journeys (id,client_id,pet_id,overall_progress,current_location,estimated_arrival,airline,flight_no,tracking_id,stages) VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE current_location=current_location',
+          [j.id, j.client_id, j.pet_id, j.overall_progress||0, j.current_location||null, j.estimated_arrival||null, j.airline||null, j.flight_no||null, j.tracking_id||null, stagesStr]
+        );
+        results.journeys++;
+      } catch (e) { results.errors.push(`journey ${j.id}: ${e.message}`); }
+    }
+
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// =============================================================================
 // ADMIN CMS STATIC FILES (/admin/) — landing page CMS
 // =============================================================================
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
