@@ -398,7 +398,8 @@
     }
   };
 
-  // ── Also install `bi` for backward compat ──────────────────────────────────
+  // ── Install `ye` and `bi` for backward compat ─────────────────────────────────
+  window.ye = window.supabase;
   window.bi = {
     auth: {
       signInWithPassword: window.supabase.auth.signInWithPassword,
@@ -413,5 +414,5 @@
     storage: window.supabase.storage
   };
 
-  console.log('[supabase-replace] window.supabase installed — routing to /api/crm/*');
+  console.log('[supabase-replace] window.supabase, window.ye, window.bi installed — routing to /api/crm/*');
 })();

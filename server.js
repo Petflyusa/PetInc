@@ -2761,10 +2761,35 @@ app.get('/CRM/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'CRM', 'index.html'));
 });
 
-// Storage proxy: /storage/v1/object/upload/{bucket}/{filename} → local file storage
+// ── Storage upload routes ───────────────────────────────────────────────────────
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// POST /storage/v1/object/{bucket}/{filename} — raw binary (Supabase storage API compatible)
+app.post('/storage/v1/object/:bucket/:filename', (req, res) => {
+  const { bucket, filename } = req.params;
+  const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+  const filePath = path.join(uploadsDir, safeName);
+
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+  req.on('end', () => {
+    try {
+      const buf = Buffer.concat(chunks);
+      fs.writeFileSync(filePath, buf);
+      res.json({ path: `/api/files/uploads/${safeName}`, error: null });
+    } catch (e) {
+      console.error('[storage] write error:', e);
+      res.status(500).json([{ message: e.message }]);
+    }
+  });
+  req.on('error', (e) => {
+    console.error('[storage] stream error:', e);
+    res.status(500).json([{ message: 'Upload failed' }]);
+  });
+});
+
+// Storage proxy: /storage/v1/object/upload/{bucket}/{filename} → local file storage
 app.post('/storage/v1/object/upload/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
