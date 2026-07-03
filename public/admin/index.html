@@ -183,7 +183,7 @@ async function login(username, password) {
   });
   if (res.redirected || res.status === 302 || res.status === 200) {
     admin = { username };
-    render();
+    renderApp();
     return true;
   }
   const data = await res.json().catch(() => ({}));
@@ -578,7 +578,7 @@ async function init() {
     admin = me;
     await loadLanding();
   }
-  render();
+  admin ? renderApp() : renderLogin();
 }
 
 // Make functions global for inline handlers
