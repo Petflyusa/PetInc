@@ -546,6 +546,71 @@ app.get('/api/landing', async (req, res) => {
 // CRM API ROUTES
 // =============================================================================
 
+// GET /api/crm/ — base path (no-op, prevents 404)
+app.get('/api/crm/', (req, res) => res.json({ error: 'Use /api/crm/{clients,pets,documents,quotes,journeys}' }));
+
+// CRM Auth — maps to supabase-replace.js auth interceptor
+// POST /api/crm/auth/login
+app.post('/api/crm/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+  try {
+    const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE email = ? AND password = ?', [email, password]);
+    if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+    const client = rows[0];
+    req.session.crmClientId = client.id;
+    req.session.crmClientEmail = client.email;
+    req.session.save(() => {
+      res.json({
+        user: { id: client.id, email: client.email, name: client.name },
+        session: { client_id: client.id, email: client.email }
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/crm/auth/register
+app.post('/api/crm/auth/register', async (req, res) => {
+  const { email, password, name } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+  try {
+    const [existing] = await crmPool.query('SELECT id FROM crm_clients WHERE email = ?', [email]);
+    if (existing.length) return res.status(409).json({ error: 'Email already registered' });
+    const [result] = await crmPool.query(
+      'INSERT INTO crm_clients (name, email, password, status) VALUES (?,?,?,?)',
+      [name || email.split('@')[0], email, password, 'active']
+    );
+    req.session.crmClientId = result.insertId;
+    req.session.crmClientEmail = email;
+    req.session.save(() => {
+      res.status(201).json({
+        user: { id: result.insertId, email, name: name || email.split('@')[0] },
+        session: { client_id: result.insertId, email }
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/crm/auth/session
+app.get('/api/crm/auth/session', (req, res) => {
+  if (req.session && req.session.crmClientId) {
+    res.json({ user: { id: req.session.crmClientId, email: req.session.crmClientEmail } });
+  } else {
+    res.json({ user: null });
+  }
+});
+
+// POST /api/crm/auth/logout
+app.post('/api/crm/auth/logout', (req, res) => {
+  req.session.destroy(() => res.json({ error: null }));
+});
+
 // CRM Clients
 app.get('/api/crm/clients', async (req, res) => {
   try {
