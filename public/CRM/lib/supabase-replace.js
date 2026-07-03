@@ -11,6 +11,7 @@
   window.fetch = function(input, init) {
     var url = typeof input === 'string' ? input : input instanceof Request ? input.url : (input || {}).url || '';
     var isOurHost = /^https?:\/\/petflyinc\.com\//.test(url);
+    console.log('[fetch-override] url=', url, 'isOurHost=', isOurHost);
 
     // ── /rest/v1/* → /api/crm/* ─────────────────────────────────────────────
     if ((url.startsWith('/rest/v1/') || (isOurHost && /\/rest\/v1\//.test(url)))) {
