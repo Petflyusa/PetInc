@@ -638,8 +638,20 @@ app.get('/api/crm/clients/:id', async (req, res) => {
 });
 
 app.post('/api/crm/clients', async (req, res) => {
-  const { name, initials, location, address, phone, email, status, password } = req.body;
+  const { id, name, initials, location, address, phone, email, status, password } = req.body;
   try {
+    // upsert: if id provided and exists, update; otherwise insert
+    if (id) {
+      const [existing] = await crmPool.query('SELECT id FROM crm_clients WHERE id = ?', [id]);
+      if (existing.length) {
+        await crmPool.query(
+          'UPDATE crm_clients SET name=?,initials=?,location=?,address=?,phone=?,email=?,status=?,password=? WHERE id=?',
+          [name, initials, location, address, phone, email, status, password, id]
+        );
+        const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE id = ?', [id]);
+        return res.json(rows[0]);
+      }
+    }
     const [result] = await crmPool.query(
       'INSERT INTO crm_clients (name, initials, location, address, phone, email, status, password) VALUES (?,?,?,?,?,?,?,?)',
       [name, initials, location, address, phone, email, status || 'active', password]
@@ -706,9 +718,22 @@ app.get('/api/crm/pets/:id', async (req, res) => {
 });
 
 app.post('/api/crm/pets', async (req, res) => {
-  const { client_id, name, breed, type, origin, destination, image, status, status_color, details } = req.body;
+  const { id, client_id, name, breed, type, origin, destination, image, status, status_color, details } = req.body;
   try {
     const detailsStr = typeof details === 'object' ? JSON.stringify(details) : details;
+    // upsert: if id provided and exists, update; otherwise insert
+    if (id) {
+      const [existing] = await crmPool.query('SELECT id FROM crm_pets WHERE id = ?', [id]);
+      if (existing.length) {
+        await crmPool.query(
+          'UPDATE crm_pets SET client_id=?,name=?,breed=?,type=?,origin=?,destination=?,image=?,status=?,status_color=?,details=? WHERE id=?',
+          [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr, id]
+        );
+        const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [id]);
+        if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+        return res.json(rows[0]);
+      }
+    }
     const [result] = await crmPool.query(
       'INSERT INTO crm_pets (client_id,name,breed,type,origin,destination,image,status,status_color,details) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr]
@@ -779,8 +804,20 @@ app.get('/api/crm/documents/:id', async (req, res) => {
 });
 
 app.post('/api/crm/documents', async (req, res) => {
-  const { client_id, pet_id, name, type, expiry_date, status, icon, file_url } = req.body;
+  const { id, client_id, pet_id, name, type, expiry_date, status, icon, file_url } = req.body;
   try {
+    // upsert: if id provided and exists, update; otherwise insert
+    if (id) {
+      const [existing] = await crmPool.query('SELECT id FROM crm_documents WHERE id = ?', [id]);
+      if (existing.length) {
+        await crmPool.query(
+          'UPDATE crm_documents SET client_id=?,pet_id=?,name=?,type=?,expiry_date=?,status=?,icon=?,file_url=? WHERE id=?',
+          [client_id, pet_id||null, name, type, expiry_date, status, icon, file_url, id]
+        );
+        const [rows] = await crmPool.query('SELECT * FROM crm_documents WHERE id = ?', [id]);
+        return res.json(rows[0]);
+      }
+    }
     const [result] = await crmPool.query(
       'INSERT INTO crm_documents (client_id,pet_id,name,type,expiry_date,status,icon,file_url) VALUES (?,?,?,?,?,?,?,?)',
       [client_id, pet_id||null, name, type, expiry_date, status, icon, file_url]
@@ -927,6 +964,19 @@ app.post('/api/crm/journeys', async (req, res) => {
   const { id, client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stages } = req.body;
   try {
     const stagesStr = typeof stages === 'object' ? JSON.stringify(stages) : stages;
+    // upsert: if id provided and exists, update; otherwise insert
+    if (id) {
+      const [existing] = await crmPool.query('SELECT id FROM crm_journeys WHERE id = ?', [id]);
+      if (existing.length) {
+        await crmPool.query(
+          'UPDATE crm_journeys SET client_id=?,pet_id=?,overall_progress=?,current_location=?,estimated_arrival=?,airline=?,flight_no=?,tracking_id=?,stages=? WHERE id=?',
+          [client_id, pet_id, overall_progress||0, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr, id]
+        );
+        const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [id]);
+        if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+        return res.json(rows[0]);
+      }
+    }
     await crmPool.query(
       'INSERT INTO crm_journeys (id,client_id,pet_id,overall_progress,current_location,estimated_arrival,airline,flight_no,tracking_id,stages) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [id, client_id, pet_id, overall_progress||0, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr]

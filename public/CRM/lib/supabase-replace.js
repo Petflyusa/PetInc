@@ -161,8 +161,8 @@
   function buildUrl(table, method, filters, offset, limit, orderCol, orderAsc) {
     var url = API_BASE + '/api/crm/' + table;
 
-    // For GET with a single id filter, use /api/crm/table/id/value pattern
-    if (method === 'GET' && filters.length === 1 && filters[0].op === '=') {
+    // For GET or DELETE with a single id filter, use /api/crm/table/id/value pattern
+    if ((method === 'GET' || method === 'DELETE') && filters.length === 1 && filters[0].op === '=') {
       var f = filters[0];
       if (f.col === 'id') {
         url = API_BASE + '/api/crm/' + table + '/' + encodeURIComponent(f.val);
@@ -406,6 +406,14 @@
         resolve({ data: null, error: { message: e.message } });
       });
     });
+  };
+
+  // Returns the public URL for a stored file.
+  // Upload stores files to /api/files/{bucket}/{filename}
+  // so the public URL is that same path.
+  StorageBucket.prototype.getPublicUrl = function(path) {
+    var publicUrl = '/api/files/' + encodeURIComponent(this._bucket) + '/' + encodeURIComponent(path);
+    return { data: { publicUrl: publicUrl } };
   };
 
   StorageBucket.prototype.download = function(path) {
