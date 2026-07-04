@@ -863,7 +863,11 @@ app.get('/api/crm/quotes', async (req, res) => {
     if (req.query.client_id) { sql += ' WHERE client_id = ?'; params.push(req.query.client_id); }
     sql += ' ORDER BY id DESC';
     const [rows] = await crmPool.query(sql, params);
-    rows.forEach(r => { try { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); } catch(e) { r.pet_quotes = null; } });
+    rows.forEach(r => {
+      try { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); } catch(e) { r.pet_quotes = null; }
+      // Filter to only pet items (have weight), drop payment metadata objects
+      if (Array.isArray(r.pet_quotes)) r.pet_quotes = r.pet_quotes.filter(p => p && p.weight !== undefined);
+    });
     res.json(rows);
   } catch (err) {
     console.error(err);
