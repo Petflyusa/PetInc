@@ -17,6 +17,8 @@
     if ((url.startsWith('/rest/v1/') || (isOurHost && /\/rest\/v1\//.test(url)))) {
       var restPath = url.replace(/^https?:\/\/petflyinc\.com\/rest\/v1\//, '/rest/v1/');
       var apiPath = restPath.replace('/rest/v1/', '/api/crm/');
+      // Remove Supabase-specific query params (select, id=eq., etc.)
+      apiPath = apiPath.replace(/\?.*$/, '');
       var method = (init && init.method) || 'GET';
       var headers = {};
       if (init && init.headers) {
