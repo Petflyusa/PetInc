@@ -531,7 +531,7 @@ app.get('/api/landing/:section', async (req, res) => {
     try { res.json(JSON.parse(rows[0].data)); }
     catch { res.json(rows[0].data); }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -542,7 +542,7 @@ app.get('/api/landing', async (req, res) => {
     for (const row of rows) result[row.section] = row.data;
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -572,7 +572,7 @@ app.post('/api/crm/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -597,7 +597,7 @@ app.post('/api/crm/auth/register', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -622,7 +622,7 @@ app.get('/api/crm/clients', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -633,7 +633,7 @@ app.get('/api/crm/clients/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -660,7 +660,7 @@ app.post('/api/crm/clients', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -675,7 +675,7 @@ app.put('/api/crm/clients/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -685,7 +685,7 @@ app.delete('/api/crm/clients/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -701,7 +701,7 @@ app.get('/api/crm/pets', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -713,7 +713,7 @@ app.get('/api/crm/pets/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -743,7 +743,7 @@ app.post('/api/crm/pets', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -760,7 +760,7 @@ app.put('/api/crm/pets/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -770,7 +770,7 @@ app.delete('/api/crm/pets/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -788,7 +788,7 @@ app.get('/api/crm/documents', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -799,7 +799,7 @@ app.get('/api/crm/documents/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -826,7 +826,7 @@ app.post('/api/crm/documents', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -841,7 +841,7 @@ app.put('/api/crm/documents/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -851,7 +851,7 @@ app.delete('/api/crm/documents/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -867,7 +867,7 @@ app.get('/api/crm/quotes', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -879,7 +879,7 @@ app.get('/api/crm/quotes/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -900,7 +900,7 @@ app.post('/api/crm/quotes', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -915,7 +915,7 @@ app.put('/api/crm/quotes/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -925,7 +925,7 @@ app.delete('/api/crm/quotes/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -944,7 +944,7 @@ app.get('/api/crm/journeys', async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -956,7 +956,7 @@ app.get('/api/crm/journeys/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -986,7 +986,7 @@ app.post('/api/crm/journeys', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1003,7 +1003,7 @@ app.put('/api/crm/journeys/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1013,7 +1013,7 @@ app.delete('/api/crm/journeys/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1034,7 +1034,7 @@ app.put('/api/admin/landing/:section', async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1696,7 +1696,7 @@ app.post('/api/migrate-from-supabase', async (req, res) => {
     res.json({ success: true, counts });
   } catch (err) {
     console.error('Migration error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1860,7 +1860,7 @@ app.get('/api/setup', async (req, res) => {
     res.json({ success: true, message: 'All tables created successfully' + (demoClient ? ' (demo account: demo/demo)' : '') });
   } catch (err) {
     console.error('Setup error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -1984,7 +1984,7 @@ app.get('/api/client/data', requireClient, async (req, res) => {
     });
   } catch (err) {
     console.error('Client data error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2156,7 +2156,7 @@ app.get('/api/client/payment-settings', requireClient, async (req, res) => {
       alipayQrUrl: c.alipay_qr_url || ''
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2234,7 +2234,7 @@ app.post('/api/admin/add_client', requireAdmin, async (req, res) => {
     res.status(201).json({ id: result.insertId, message: 'Client created' });
   } catch (err) {
     console.error('Add client error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2259,7 +2259,7 @@ app.post('/api/admin/update_client', requireAdmin, async (req, res) => {
     res.json({ message: 'Client updated' });
   } catch (err) {
     console.error('Update client error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2273,7 +2273,7 @@ app.delete('/api/admin/delete_client', requireAdmin, async (req, res) => {
     res.json({ message: 'Client deleted' });
   } catch (err) {
     console.error('Delete client error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2331,7 +2331,7 @@ app.post('/api/admin/add_country', requireAdmin, async (req, res) => {
     res.status(201).json({ id: result.insertId, message: 'Country created' });
   } catch (err) {
     console.error('Add country error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2357,7 +2357,7 @@ app.post('/api/admin/update_country', requireAdmin, async (req, res) => {
     res.json({ message: 'Country updated' });
   } catch (err) {
     console.error('Update country error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2371,7 +2371,7 @@ app.delete('/api/admin/delete_country', requireAdmin, async (req, res) => {
     res.json({ message: 'Country deleted' });
   } catch (err) {
     console.error('Delete country error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2426,7 +2426,7 @@ app.post('/api/admin/add_airline', requireAdmin, async (req, res) => {
     res.status(201).json({ id: result.insertId, message: 'Airline created' });
   } catch (err) {
     console.error('Add airline error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2449,7 +2449,7 @@ app.post('/api/admin/update_airline', requireAdmin, async (req, res) => {
     res.json({ message: 'Airline updated' });
   } catch (err) {
     console.error('Update airline error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2463,7 +2463,7 @@ app.delete('/api/admin/delete_airline', requireAdmin, async (req, res) => {
     res.json({ message: 'Airline deleted' });
   } catch (err) {
     console.error('Delete airline error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2525,7 +2525,7 @@ app.post('/api/admin/update_quote', requireAdmin, async (req, res) => {
     res.json({ message: 'Quote updated' });
   } catch (err) {
     console.error('Update quote error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2539,7 +2539,7 @@ app.delete('/api/admin/delete_quote', requireAdmin, async (req, res) => {
     res.json({ message: 'Quote deleted' });
   } catch (err) {
     console.error('Delete quote error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2587,7 +2587,7 @@ app.delete('/api/admin/delete_contact', requireAdmin, async (req, res) => {
     res.json({ message: 'Contact deleted' });
   } catch (err) {
     console.error('Delete contact error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2658,7 +2658,7 @@ app.post('/api/admin/add_service', requireAdmin, async (req, res) => {
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('Add service error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2677,7 +2677,7 @@ app.post('/api/admin/update_service', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Update service error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2692,7 +2692,7 @@ app.delete('/api/admin/delete_service', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Delete service error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2729,7 +2729,7 @@ app.post('/api/admin/update_sop', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Update SOP error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2765,7 +2765,7 @@ app.post('/api/admin/send_message', requireAdmin, async (req, res) => {
     res.json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('Send message error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2798,7 +2798,7 @@ app.get('/api/admin/fix-schema', requireAdmin, async (req, res) => {
     }
     res.json({ success: true, results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
@@ -2954,7 +2954,7 @@ app.post('/api/admin/seed-crm', requireAdmin, async (req, res) => {
     res.json({ success: true, results });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 });
 
