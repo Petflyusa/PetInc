@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const { initializeDatabase } = require('./db');
 const fs = require('fs');
 const multer = require('multer');
+const busboy = require('busboy');
 const crypto = require('crypto');
 
 // File upload storage
@@ -2821,27 +2822,56 @@ app.get('/CRM/*', (req, res) => {
 
 // ── Storage upload routes ───────────────────────────────────────────────────────
 // POST /storage/v1/object/{bucket}/{filename} — raw binary (Supabase storage API compatible)
+// Storage proxy: /storage/v1/object/{bucket}/{filename} → local file storage
+// Handles both raw binary (Supabase direct) and FormData uploads (via browser client)
 app.post('/storage/v1/object/:bucket/:filename', (req, res) => {
   const { bucket, filename } = req.params;
   const safeName = `${Date.now()}-${filename.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
   const filePath = path.join(UPLOAD_DIR, safeName);
 
-  const chunks = [];
-  req.on('data', chunk => chunks.push(chunk));
-  req.on('end', () => {
-    try {
-      const buf = Buffer.concat(chunks);
-      fs.writeFileSync(filePath, buf);
-      res.json({ path: `/api/files/uploads/${safeName}`, error: null });
-    } catch (e) {
-      console.error('[storage] write error:', e);
+  const contentType = req.get('content-type') || '';
+
+  if (contentType.includes('multipart/form-data')) {
+    // Handle FormData upload
+    const bb = busboy({ headers: req.headers });
+    const writeStream = fs.createWriteStream(filePath);
+    let filedone = false;
+    bb.on('file', (fieldname, file, info) => {
+      const { filename: fname, mimeType } = info;
+      file.pipe(writeStream);
+      file.on('end', () => { filedone = true; });
+    });
+    bb.on('close', () => {
+      if (!filedone) writeStream.write('');
+      writeStream.end();
+      writeStream.on('finish', () => {
+        res.json({ path: `/api/files/uploads/${safeName}`, error: null });
+      });
+    });
+    bb.on('error', (e) => {
+      console.error('[storage] busboy error:', e);
       res.status(500).json([{ message: e.message }]);
-    }
-  });
-  req.on('error', (e) => {
-    console.error('[storage] stream error:', e);
-    res.status(500).json([{ message: 'Upload failed' }]);
-  });
+    });
+    req.pipe(bb);
+  } else {
+    // Handle raw binary upload
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const buf = Buffer.concat(chunks);
+        fs.writeFileSync(filePath, buf);
+        res.json({ path: `/api/files/uploads/${safeName}`, error: null });
+      } catch (e) {
+        console.error('[storage] write error:', e);
+        res.status(500).json([{ message: e.message }]);
+      }
+    });
+    req.on('error', (e) => {
+      console.error('[storage] stream error:', e);
+      res.status(500).json([{ message: 'Upload failed' }]);
+    });
+  }
 });
 
 // Storage proxy: /storage/v1/object/upload/{bucket}/{filename} → local file storage
