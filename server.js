@@ -697,7 +697,7 @@ app.get('/api/crm/pets', async (req, res) => {
     if (req.query.client_id) { sql += ' WHERE client_id = ?'; params.push(req.query.client_id); }
     sql += ' ORDER BY id DESC';
     const [rows] = await crmPool.query(sql, params);
-    rows.forEach(r => { if (r.details) r.details = JSON.parse(r.details); });
+    rows.forEach(r => { try { if (r.details) r.details = JSON.parse(r.details); } catch(e) { r.details = null; } });
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -709,7 +709,7 @@ app.get('/api/crm/pets/:id', async (req, res) => {
   try {
     const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    try { if (rows[0].details) rows[0].details = JSON.parse(rows[0].details); } catch(e) { rows[0].details = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -730,7 +730,7 @@ app.post('/api/crm/pets', async (req, res) => {
           [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr, id]
         );
         const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [id]);
-        if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+        try { if (rows[0].details) rows[0].details = JSON.parse(rows[0].details); } catch(e) { rows[0].details = null; }
         return res.json(rows[0]);
       }
     }
@@ -739,7 +739,7 @@ app.post('/api/crm/pets', async (req, res) => {
       [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr]
     );
     const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [result.insertId]);
-    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    try { if (rows[0].details) rows[0].details = JSON.parse(rows[0].details); } catch(e) { rows[0].details = null; }
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -756,7 +756,7 @@ app.put('/api/crm/pets/:id', async (req, res) => {
       [client_id, name, breed, type, origin, destination, image, status, status_color, detailsStr, req.params.id]
     );
     const [rows] = await crmPool.query('SELECT * FROM crm_pets WHERE id = ?', [req.params.id]);
-    if (rows[0].details) rows[0].details = JSON.parse(rows[0].details);
+    try { if (rows[0].details) rows[0].details = JSON.parse(rows[0].details); } catch(e) { rows[0].details = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -863,7 +863,7 @@ app.get('/api/crm/quotes', async (req, res) => {
     if (req.query.client_id) { sql += ' WHERE client_id = ?'; params.push(req.query.client_id); }
     sql += ' ORDER BY id DESC';
     const [rows] = await crmPool.query(sql, params);
-    rows.forEach(r => { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); });
+    rows.forEach(r => { try { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); } catch(e) { r.pet_quotes = null; } });
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -875,7 +875,7 @@ app.get('/api/crm/quotes/:id', async (req, res) => {
   try {
     const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    try { if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes); } catch(e) { rows[0].pet_quotes = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -896,7 +896,7 @@ app.post('/api/crm/quotes', async (req, res) => {
         [id, client_id, ref, route, status, petQuotesStr]);
     }
     const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [id]);
-    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    try { if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes); } catch(e) { rows[0].pet_quotes = null; }
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -911,7 +911,7 @@ app.put('/api/crm/quotes/:id', async (req, res) => {
     await crmPool.query('UPDATE crm_quotes SET client_id=?,ref=?,route=?,status=?,pet_quotes=? WHERE id=?',
       [client_id, ref, route, status, petQuotesStr, req.params.id]);
     const [rows] = await crmPool.query('SELECT * FROM crm_quotes WHERE id = ?', [req.params.id]);
-    if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes);
+    try { if (rows[0].pet_quotes) rows[0].pet_quotes = JSON.parse(rows[0].pet_quotes); } catch(e) { rows[0].pet_quotes = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -940,7 +940,7 @@ app.get('/api/crm/journeys', async (req, res) => {
     if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
     sql += ' ORDER BY id DESC';
     const [rows] = await crmPool.query(sql, params);
-    rows.forEach(r => { if (r.stages) r.stages = JSON.parse(r.stages); });
+    rows.forEach(r => { try { if (r.stages) r.stages = JSON.parse(r.stages); } catch(e) { r.stages = null; } });
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -952,7 +952,7 @@ app.get('/api/crm/journeys/:id', async (req, res) => {
   try {
     const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    try { if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages); } catch(e) { rows[0].stages = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -973,7 +973,7 @@ app.post('/api/crm/journeys', async (req, res) => {
           [client_id, pet_id, overall_progress||0, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr, id]
         );
         const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [id]);
-        if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+        try { if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages); } catch(e) { rows[0].stages = null; }
         return res.json(rows[0]);
       }
     }
@@ -982,7 +982,7 @@ app.post('/api/crm/journeys', async (req, res) => {
       [id, client_id, pet_id, overall_progress||0, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr]
     );
     const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [id]);
-    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    try { if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages); } catch(e) { rows[0].stages = null; }
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error(err);
@@ -999,7 +999,7 @@ app.put('/api/crm/journeys/:id', async (req, res) => {
       [client_id, pet_id, overall_progress, current_location, estimated_arrival, airline, flight_no, tracking_id, stagesStr, req.params.id]
     );
     const [rows] = await crmPool.query('SELECT * FROM crm_journeys WHERE id = ?', [req.params.id]);
-    if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages);
+    try { if (rows[0].stages) rows[0].stages = JSON.parse(rows[0].stages); } catch(e) { rows[0].stages = null; }
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
