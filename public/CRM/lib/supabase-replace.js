@@ -114,6 +114,24 @@
               });
             }
             step();
+          } else if (typeof FormData !== 'undefined' && body instanceof FormData) {
+            // FormData: extract the 'file' field and send as base64
+            var file = body.get('file');
+            if (!file) {
+              // Try first entry if no 'file' key
+              var keys = [];
+              try { keys = Object.keys(body); } catch(e) {}
+              console.warn('[fetch-override] FormData has no "file" field, keys:', keys);
+              resolve(new Response(JSON.stringify({ error: 'Upload failed: FormData has no file field, keys: ' + JSON.stringify(keys) }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+              return;
+            }
+            if (typeof file.arrayBuffer === 'function') {
+              file.arrayBuffer().then(sendB64).catch(function() {
+                resolve(new Response(JSON.stringify({ error: 'Upload failed: FormData file arrayBuffer error' }), { status: 500, headers: { 'Content-Type': 'application/json' } }));
+              });
+            } else {
+              resolve(new Response(JSON.stringify({ error: 'Upload failed: FormData file has no arrayBuffer method, type: ' + typeof file }), { status: 500, headers: { 'Content-Type': 'application/json' } }));
+            }
           } else {
             // Fallback: try to get arrayBuffer (handles Blob, File, etc.)
             var fallback = body && body.arrayBuffer;
