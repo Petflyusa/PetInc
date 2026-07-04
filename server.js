@@ -866,7 +866,7 @@ app.get('/api/crm/quotes', async (req, res) => {
     rows.forEach(r => {
       try { if (r.pet_quotes) r.pet_quotes = JSON.parse(r.pet_quotes); } catch(e) { r.pet_quotes = null; }
       // Filter to only pet items (have weight), drop payment metadata objects
-      if (Array.isArray(r.pet_quotes)) r.pet_quotes = r.pet_quotes.filter(p => p && p.weight !== undefined);
+      if (Array.isArray(r.pet_quotes)) r.pet_quotes = r.pet_quotes.filter(p => p !== null && p !== undefined && p.weight !== undefined);
     });
     res.json(rows);
   } catch (err) {
