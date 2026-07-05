@@ -485,21 +485,29 @@ app.get('/admin/login', (req, res) => {
   res.render('admin-login.ejs');
 });
 
-// POST /admin/login - Verify admin credentials
-// Supports both EJS form (password only) and SPA (username + password)
-app.post('/admin/login', (req, res) => {
+// POST /admin/login - Verify admin credentials via crm_admins table
+app.post('/admin/login', async (req, res) => {
   const { username, password, login_password } = req.body;
   const pw = password || login_password;
-  const user = username || 'admin';
-  // Admin login: username='admin' + password must match ADMIN_PASSWORD
-  if (user === 'admin' && pw === process.env.ADMIN_PASSWORD) {
-    req.session.adminLoggedIn = true;
-    // SPA clients expect JSON or redirect; EJS form expects redirect
-    if (req.xhr || req.headers.accept?.includes('json')) {
-      return res.json({ success: true });
+  const user = username || 'petflyusa@hotmail.com';
+
+  try {
+    const [admins] = await pool.query(
+      'SELECT * FROM crm_admins WHERE username = ? AND password = ?',
+      [user, pw]
+    );
+    if (admins.length > 0) {
+      req.session.adminLoggedIn = true;
+      req.session.adminUser = admins[0];
+      if (req.xhr || req.headers.accept?.includes('json')) {
+        return res.json({ success: true });
+      }
+      return res.redirect('/admin');
     }
-    return res.redirect('/admin');
+  } catch (err) {
+    console.error('Admin login error:', err);
   }
+
   if (req.xhr || req.headers.accept?.includes('json')) {
     return res.status(401).json({ success: false, error: 'Invalid credentials' });
   }

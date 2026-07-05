@@ -28,6 +28,26 @@ async function query(sql, params) {
 }
 
 async function initializeDatabase() {
+  // Create crm_admins table
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS crm_admins (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(150) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
+      name VARCHAR(100),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Insert default admin if not exists
+  const [admins] = await pool.execute('SELECT id FROM crm_admins WHERE username = ?', ['petflyusa@hotmail.com']);
+  if (admins.length === 0) {
+    await pool.execute(
+      'INSERT INTO crm_admins (username, password, name) VALUES (?, ?, ?)',
+      ['petflyusa@hotmail.com', 'Jz10191019', 'PetFly Admin']
+    );
+  }
+
   // Create quote_requests table
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS quote_requests (
