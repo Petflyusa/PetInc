@@ -565,12 +565,25 @@ app.get('/api/crm/', (req, res) => res.json({ error: 'Use /api/crm/{clients,pets
 // CRM Auth — maps to supabase-replace.js auth interceptor
 // POST /api/crm/auth/login
 app.post('/api/crm/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
   try {
-    const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE email = ? AND password = ?', [email, password]);
-    if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
-    const client = rows[0];
+    let client = null;
+
+    // Check crm_admins first (admin login)
+    const [admins] = await crmPool.query('SELECT * FROM crm_admins WHERE username = ? AND password = ?', [email, password]);
+    if (admins.length > 0) {
+      client = { id: admins[0].id, email: admins[0].username, name: admins[0].name || 'Admin', role: 'admin' };
+    } else {
+      // Fall back to crm_clients (client login)
+      const [rows] = await crmPool.query('SELECT * FROM crm_clients WHERE email = ? AND password = ?', [email, password]);
+      if (rows.length > 0) {
+        client = { id: rows[0].id, email: rows[0].email, name: rows[0].name, role: 'client' };
+      }
+    }
+
+    if (!client) return res.status(401).json({ error: 'Invalid credentials' });
+
     req.session.crmClientId = client.id;
     req.session.crmClientEmail = client.email;
     req.session.save(() => {
