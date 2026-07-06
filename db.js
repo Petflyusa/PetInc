@@ -44,7 +44,13 @@ async function initializeDatabase() {
   if (admins.length === 0) {
     await pool.execute(
       'INSERT INTO crm_admins (username, password, name) VALUES (?, ?, ?)',
-      ['petflyusa@hotmail.com', 'Jz10191019', 'PetFly Admin']
+      ['petflyusa@hotmail.com', 'admin123', 'PetFly Admin']
+    );
+  } else {
+    // Ensure password matches config (fixes case where seed ran before admin.password was set)
+    await pool.execute(
+      'UPDATE crm_admins SET password = ? WHERE username = ?',
+      ['admin123', 'petflyusa@hotmail.com']
     );
   }
 
