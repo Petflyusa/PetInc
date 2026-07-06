@@ -1,6 +1,7 @@
 <%- include('partials/header', { currentPage: 'index' }) %>
 
 <% const h = content.hero || {eyebrow:'International Pet Transport',headline:'Where Every\nJourney\nCounts.',subheading:'Safe passage for your most precious companions — to 15+ countries, with IATA & USDA certified care at every mile.',cta_text:'Request a Quote'}; %>
+<% const bgOpacity = (h.background_opacity !== undefined && h.background_opacity !== '') ? Number(h.background_opacity) : 0.55; %>
 <% const s = content.stats || []; %>
 <% const svcs = content.services || []; %>
 <% const ab = content.about || {text:"We don't just transport pets. We shepherd them safely across oceans and continents — with precision, care, and unwavering attention."}; %>
@@ -10,7 +11,13 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-fallback"></div>
+<% if (h.background_video) { %>
+    <video class="hero-video" autoplay muted loop playsinline>
+      <source src="<%= h.background_video %>" type="video/mp4">
+    </video>
+<% } else { %>
+    <div class="hero-fallback" style="<% if (h.background_image) { %>background-image: url('<%= h.background_image %>');<% } %>opacity: <%= bgOpacity %>;"></div>
+<% } %>
     <div class="hero-overlay"></div>
     <div class="hero-content">
       <div class="container">

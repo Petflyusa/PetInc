@@ -371,7 +371,7 @@ function renderQuotes(el) {
 
 function getDefault(section) {
   const defaults = {
-    hero: { eyebrow: 'International Pet Transport', headline: 'Where Every\nJourney\nCounts.', subheading: 'Safe passage for your most precious companions — to 15+ countries, with IATA & USDA certified care at every mile.', cta_text: 'Request a Quote' },
+    hero: { eyebrow: 'International Pet Transport', headline: 'Where Every\nJourney\nCounts.', subheading: 'Safe passage for your most precious companions — to 15+ countries, with IATA & USDA certified care at every mile.', cta_text: 'Request a Quote', background_image: '', background_video: '', background_opacity: 0.55 },
     stats: [{number:'8+',label:'Years Experience'},{number:'15+',label:'Countries Served'},{number:'3',label:'Global Offices'},{number:'IATA',label:'Certified'}],
     services: [{icon:'fa-plane-departure',title:'International Transport',desc:'Door-to-door pet relocation across 15+ countries. Complete documentation, customs clearance, and IATA-compliant containers handled for you.'},{icon:'fa-file-contract',title:'Documentation',desc:'Health certificates, import permits, microchipping records — every piece of paperwork reviewed and processed by our expert team.'},{icon:'fa-shield-alt',title:'USDA & IATA Compliance',desc:'Fully compliant with international airline regulations. Your pet travels in approved containers with full regulatory approval at every checkpoint.'},{icon:'fa-headset',title:'Dedicated Support',desc:'A single point of contact throughout the entire journey. Real-time updates, veterinary guidance, and 24/7 emergency availability.'}],
     about: { text: "We don't just transport pets.\nWe shepherd them safely across oceans and continents — with precision, care, and unwavering attention." },
@@ -386,6 +386,22 @@ function renderSectionForm(section, data) {
   switch (section) {
     case 'hero': return `
       <h3><i class="fas fa-image"></i> Hero Section</h3>
+      <div class="form-group">
+        <label>Background Image URL</label>
+        <input type="text" id="f-hero-background_image" value="${esc(data.background_image||'')}" placeholder="https://images.unsplash.com/...">
+        ${data.background_image ? `<img src="${esc(data.background_image)}" style="margin-top:8px;max-width:200px;border-radius:4px;border:1px solid var(--border);" onerror="this.style.display='none'">` : ''}
+      </div>
+      <div class="form-group">
+        <label>Background Video URL (MP4)</label>
+        <input type="text" id="f-hero-background_video" value="${esc(data.background_video||'')}" placeholder="https://example.com/video.mp4">
+        ${data.background_video ? `<video src="${esc(data.background_video)}" style="margin-top:8px;max-width:200px;border-radius:4px;border:1px solid var(--border);" muted autoplay loop playsinline onerror="this.style.display='none'"></video>` : ''}
+      </div>
+      <div class="form-group">
+        <label>Background Opacity (0.1 – 1.0)</label>
+        <input type="range" id="f-hero-background_opacity" min="0.1" max="1" step="0.05" value="${data.background_opacity !== undefined ? data.background_opacity : 0.55}" style="width:100%;">
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">Current: <span id="f-hero-opacity-display">${data.background_opacity !== undefined ? data.background_opacity : 0.55}</span></div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
       <div class="form-group">
         <label>Eyebrow text</label>
         <input type="text" id="f-hero-eyebrow" value="${esc(data.eyebrow||'')}">
@@ -502,8 +518,13 @@ function renderSectionForm(section, data) {
 function bindSectionInputs(section) {
   // Hero
   if (section === 'hero') {
-    [['f-hero-eyebrow','eyebrow'],['f-hero-headline','headline'],['f-hero-subheading','subheading'],['f-hero-cta_text','cta_text']].forEach(([id, key]) => {
+    [['f-hero-eyebrow','eyebrow'],['f-hero-headline','headline'],['f-hero-subheading','subheading'],['f-hero-cta_text','cta_text'],['f-hero-background_image','background_image'],['f-hero-background_video','background_video']].forEach(([id, key]) => {
       $(`#${id}`)?.addEventListener('input', e => { landingData.hero[key] = e.target.value; });
+    });
+    // Opacity slider
+    $('#f-hero-background_opacity')?.addEventListener('input', e => {
+      landingData.hero.background_opacity = parseFloat(e.target.value);
+      $('#f-hero-opacity-display').textContent = e.target.value;
     });
   }
   // Stats
