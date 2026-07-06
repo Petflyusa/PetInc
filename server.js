@@ -486,6 +486,7 @@ app.get('/admin/login', (req, res) => {
 });
 
 // POST /admin/login - Verify admin credentials via crm_admins table
+// Falls back to hardcoded admin123 if DB is unavailable (allows recovery)
 app.post('/admin/login', async (req, res) => {
   const { username, password, login_password } = req.body;
   const pw = password || login_password;
@@ -505,6 +506,15 @@ app.post('/admin/login', async (req, res) => {
       return res.redirect('/admin');
     }
   } catch (err) {
+    // DB unavailable — fall back to hardcoded credentials
+    if (user === 'petflyusa@hotmail.com' && pw === 'admin123') {
+      req.session.adminLoggedIn = true;
+      req.session.adminUser = { id: 0, username: 'petflyusa@hotmail.com', name: 'PetFly Admin' };
+      if (req.xhr || req.headers.accept?.includes('json')) {
+        return res.json({ success: true });
+      }
+      return res.redirect('/admin');
+    }
     console.error('Admin login error:', err);
   }
 
