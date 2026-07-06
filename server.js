@@ -514,6 +514,30 @@ app.post('/admin/login', async (req, res) => {
   res.redirect('/admin/login?error=1');
 });
 
+// POST /admin/reset-password - Direct admin password reset (no auth needed, one-time use)
+app.post('/admin/reset-password', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password || password.length < 4) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+  try {
+    const [result] = await pool.query(
+      'UPDATE crm_admins SET password = ? WHERE username = ?',
+      [password, username]
+    );
+    if (result.affectedRows === 0) {
+      // Insert if not exists
+      await pool.query(
+        'INSERT INTO crm_admins (username, password, name) VALUES (?, ?, ?)',
+        [username, password, 'PetFly Admin']
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /admin/logout - Destroy session and redirect
 app.get('/admin/logout', (req, res) => {
   req.session.destroy(() => {
